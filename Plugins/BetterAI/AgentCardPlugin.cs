@@ -127,9 +127,9 @@ public sealed class AgentCardView : UserControl
             .OrderByDescending(r => r!.UpdatedUtc)
             .FirstOrDefault();
 
-        bool isClaudeDesktop = selected == AgentInbox.ClaudeDesktop || reply?.Provider == AgentInbox.ClaudeDesktop;
-        _composer.Visibility = isClaudeDesktop ? Visibility.Collapsed : Visibility.Visible;
-        _currentReplyText = isClaudeDesktop ? null : reply?.Text;
+        bool isReadOnly = (reply?.Provider ?? selected) is AgentInbox.ClaudeDesktop or AgentInbox.Gemini;
+        _composer.Visibility = isReadOnly ? Visibility.Collapsed : Visibility.Visible;
+        _currentReplyText = isReadOnly ? null : reply?.Text;
         if (reply == null)
         {
             PreferredContentWidth = MinContentWidth;
