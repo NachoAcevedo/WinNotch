@@ -8,7 +8,7 @@ namespace WinNotch.Views;
 
 public sealed class AgentCardView : UserControl
 {
-    private readonly ComboBox _provider = new() { Width = 125, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 7) };
+    private readonly ComboBox _provider = new() { Width = 150, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 7) };
     private readonly TextBox _reply = new() { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, BorderThickness = new Thickness(0), Background = System.Windows.Media.Brushes.Transparent, Height = 210, FontSize = 12 };
     private readonly TextBlock _status = new() { FontSize = 10, Margin = new Thickness(0, 6, 0, 0), TextWrapping = TextWrapping.Wrap };
     private FileSystemWatcher? _watcher;
@@ -17,7 +17,7 @@ public sealed class AgentCardView : UserControl
     public AgentCardView()
     {
         var panel = new StackPanel();
-        _provider.ItemsSource = new[] { "Automático", "Codex", "Claude" };
+        _provider.ItemsSource = AgentInbox.Providers.Prepend("Automático").ToArray();
         _provider.SelectedIndex = 0;
         panel.Children.Add(_provider);
         _reply.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
@@ -45,12 +45,12 @@ public sealed class AgentCardView : UserControl
     private void Refresh()
     {
         var selected = _provider.SelectedItem as string ?? "Automático";
-        var latest = new[] { "Codex", "Claude" }.Where(provider => selected == "Automático" || selected == provider)
+        var latest = AgentInbox.Providers.Where(provider => selected == "Automático" || selected == provider)
             .Select(provider => LocalCards.Read<AgentReply>($"reply-{provider}.json"))
             .Where(reply => reply != null).OrderByDescending(reply => reply!.UpdatedUtc).FirstOrDefault();
         if (latest == null)
         {
-            _reply.Text = "Acá aparecerá la última respuesta terminada de Codex o Claude Code en VS Code.\n\nSolo lectura: esta tarjeta no envía mensajes ni ejecuta las instrucciones de las respuestas.";
+            _reply.Text = "Acá aparecerá la última respuesta terminada del proveedor seleccionado.\n\nSolo lectura: esta tarjeta no envía mensajes ni ejecuta las instrucciones de las respuestas.";
             _status.Text = "Esperando una respuesta del proveedor seleccionado.";
         }
         else

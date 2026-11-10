@@ -27,14 +27,18 @@ public sealed record AgentReply(string Provider, string Text, DateTime UpdatedUt
 
 public static class AgentInbox
 {
+    public const string ClaudeDesktop = "Claude Desktop";
+    public static IReadOnlyList<string> Providers { get; } = Array.AsReadOnly(new[] { "Codex", "Claude", ClaudeDesktop });
+
     public static AgentReply? Parse(string provider, string json)
     {
-        if (provider is not ("Codex" or "Claude")) return null;
+        if (!Providers.Contains(provider)) return null;
         using var document = JsonDocument.Parse(json);
         var payload = document.RootElement;
         bool stopEvent = payload.TryGetProperty("hook_event_name", out var hookName) && hookName.GetString() == "Stop";
         if (provider == "Codex" && !stopEvent && (!payload.TryGetProperty("type", out var kind) || kind.GetString() != "agent-turn-complete")) return null;
         if (provider == "Claude" && payload.TryGetProperty("hook_event_name", out var hook) && hook.GetString() != "Stop") return null;
+        if (provider == ClaudeDesktop && !stopEvent) return null;
         var key = provider == "Codex" && !stopEvent ? "last-assistant-message" : "last_assistant_message";
         if (!payload.TryGetProperty(key, out var text) || text.ValueKind != JsonValueKind.String) return null;
         var message = text.GetString();

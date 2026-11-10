@@ -30,7 +30,7 @@ public sealed class AgentCardView : UserControl
 
     private readonly ComboBox _provider = new ComboBox
     {
-        Width = 125.0,
+        Width = 150.0,
         HorizontalAlignment = HorizontalAlignment.Left,
         Margin = new Thickness(0.0, 0.0, 0.0, 7.0)
     };
@@ -56,6 +56,7 @@ public sealed class AgentCardView : UserControl
 
     private FileSystemWatcher? _watcher;
     private string? _currentReplyText;
+    private readonly AgentComposer _composer;
 
     private readonly DispatcherTimer _debounce = new DispatcherTimer
     {
@@ -67,12 +68,13 @@ public sealed class AgentCardView : UserControl
         ClipToBounds = true;
 
         var panel = new StackPanel();
-        _provider.ItemsSource = new[] { "Automático", "Codex", "Claude" };
+        _provider.ItemsSource = AgentInbox.Providers.Prepend("Automático").ToArray();
         _provider.SelectedIndex = 0;
         panel.Children.Add(_provider);
         _reply.SetResourceReference(Control.ForegroundProperty, "TextPrimaryBrush");
         panel.Children.Add(_reply);
-        panel.Children.Add(new AgentComposer(() => _currentReplyText, status => _status.Text = status));
+        _composer = new AgentComposer(() => _currentReplyText, status => _status.Text = status);
+        panel.Children.Add(_composer);
         _status.SetResourceReference(TextBlock.ForegroundProperty, "TextMutedBrush");
         panel.Children.Add(_status);
         Content = panel;
@@ -118,25 +120,27 @@ public sealed class AgentCardView : UserControl
     private void Refresh()
     {
         string selected = _provider.SelectedItem as string ?? "Automático";
-        var reply = new[] { "Codex", "Claude" }
+        var reply = AgentInbox.Providers
             .Where(provider => selected == "Automático" || selected == provider)
             .Select(provider => LocalCards.Read<AgentReply>("reply-" + provider + ".json"))
             .Where(r => r != null)
             .OrderByDescending(r => r!.UpdatedUtc)
             .FirstOrDefault();
 
-        _currentReplyText = reply?.Text;
+        bool isClaudeDesktop = selected == AgentInbox.ClaudeDesktop || reply?.Provider == AgentInbox.ClaudeDesktop;
+        _composer.Visibility = isClaudeDesktop ? Visibility.Collapsed : Visibility.Visible;
+        _currentReplyText = isClaudeDesktop ? null : reply?.Text;
         if (reply == null)
         {
             PreferredContentWidth = MinContentWidth;
-            _reply.Text = "Acá aparecerá la última respuesta terminada de Codex o Claude Code en VS Code.\n\nSolo lectura: esta tarjeta no envía mensajes ni ejecuta las instrucciones de las respuestas.";
+            _reply.Text = "Acá aparecerá la última respuesta terminada del proveedor seleccionado.\n\nSolo lectura: esta tarjeta no envía mensajes ni ejecuta las instrucciones de las respuestas.";
             _status.Text = "Esperando una respuesta del proveedor seleccionado.";
             return;
         }
 
         // Las respuestas muy largas se recortan para que la tarjeta siga fluida.
         string text = reply.Text.Length > MaxReplyChars
-            ? reply.Text.Substring(0, MaxReplyChars) + "\n\n… (respuesta recortada, seguí en VS Code)"
+            ? reply.Text.Substring(0, MaxReplyChars) + "\n\n… (respuesta recortada, seguí en la aplicación)"
             : reply.Text;
         if (_reply.Text != text)
         {
@@ -371,7 +375,7 @@ public sealed class AgentCardPlugin : CardPluginBase
     }
 
     private static DateTime LatestReplyUtc() =>
-        new[] { "Codex", "Claude" }
+        AgentInbox.Providers
             .Select(provider => LocalCards.Read<AgentReply>("reply-" + provider + ".json"))
             .Where(r => r != null)
             .Select(r => r!.UpdatedUtc)
