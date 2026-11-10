@@ -1,6 +1,6 @@
 # WinNotch — NachoAcevedo fork
 
-This repository is NachoAcevedo's personal fork of [N3uralCreativity/WinNotch](https://github.com/N3uralCreativity/WinNotch). It contains the customized WinNotch source and the plugin projects in [Examples/Plugins](Examples/Plugins).
+This repository is NachoAcevedo's personal fork of [N3uralCreativity/WinNotch](https://github.com/N3uralCreativity/WinNotch). It contains the customized WinNotch source and Nacho_114's plugin projects in [Plugins](Plugins). The original plugin examples are in [Examples/Plugins](Examples/Plugins).
 
 WinNotch is a Dynamic Island-inspired notch overlay for Windows. It brings media controls, calendar, battery, webcam, volume and brightness HUDs, file staging, and installable plugins into a compact surface that can live at the top or side of the screen.
 
@@ -46,6 +46,33 @@ To create a publish folder:
 
 ```bash
 dotnet publish src/WinNotch/WinNotch.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish
+```
+
+## Personal plugins
+
+| Folder | Features |
+| --- | --- |
+| [BetterUI](Plugins/BetterUI) | Adaptive notch width, settings layout and native flyout hiding. Each is a separate plugin project. |
+| [NectarTheme](Plugins/NectarTheme) | Nectar colors, typography and styles. |
+| [BetterMedia](Plugins/BetterMedia) | Playback notifications with album art. |
+| [BetterCalendar](Plugins/BetterCalendar) | Calendar events from all classic Outlook accounts. |
+| [BetterTasks](Plugins/BetterTasks) | Basic and Outlook variants. Both use the same plugin ID, so install only one. |
+| [BetterWeather](Plugins/BetterWeather) | Weather and forecast card. |
+| [BetterFiles](Plugins/BetterFiles) | Files card. |
+| [BetterAI](Plugins/BetterAI) | AI card backed by AgentBridge. |
+
+To compile a plugin on another PC, build its project from the repository root. For example:
+
+```powershell
+dotnet build Plugins/BetterCalendar/CalendarAccountsPlugin.csproj -c Release
+```
+
+Copy the plugin DLL from its `bin/Release` output into a dedicated subfolder of `%AppData%\WinNotch\Plugins`. For NectarTheme, copy the generated `Fonts` folder alongside the DLL. Install only one BetterTasks variant.
+
+For BetterAI, publish AgentBridge separately:
+
+```powershell
+dotnet publish tools/AgentBridge/AgentBridge.csproj -c Release -o publish/AgentBridge
 ```
 
 ## Plugins

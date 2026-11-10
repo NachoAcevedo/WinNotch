@@ -5,16 +5,12 @@
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>MusicPlugin</AssemblyName>
+    <AssemblyName>NativeFlyoutHiderPlugin</AssemblyName>
     <RootNamespace>PersonalCards</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- WinNotch.dll extraído del single-file WinNotch.exe (sfextract). No se copia a la salida. -->
-    <Reference Include="WinNotch">
-      <HintPath>..\ref\bundle\WinNotch.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    <ProjectReference Include="..\..\..\src\WinNotch\WinNotch.csproj" Private="false" />
   </ItemGroup>
 
 </Project>
