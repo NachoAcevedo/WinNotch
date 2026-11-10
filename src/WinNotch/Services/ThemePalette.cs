@@ -59,8 +59,8 @@ public sealed class ThemePalette
     private static ThemePalette CreateStandard(bool isLight, bool useLiquidGlass, Color accentSeed, bool reduceMotion)
     {
         var readabilityBackground = isLight
-            ? Color.FromRgb(0xF6, 0xF8, 0xFB)
-            : Color.FromRgb(0x0D, 0x0D, 0x0F);
+            ? Color.FromRgb(0xFA, 0xF8, 0xFC)
+            : Color.FromRgb(0x16, 0x14, 0x1B);
 
         // Liquid glass: a thin tint (~35-40%) over the blurred backdrop — iOS-style
         // glass is mostly the refracted background, not a solid fill. Non-glass
@@ -71,16 +71,16 @@ public sealed class ThemePalette
                 ? Mix(Color.FromArgb(0x59, 0xEC, 0xEE, 0xF2), accentSeed, 0.03)
                 : Mix(Color.FromArgb(0x66, 0x12, 0x12, 0x15), accentSeed, 0.03))
             : (isLight
-                ? Mix(Color.FromRgb(0xF3, 0xF5, 0xF8), accentSeed, 0.05)
-                : Mix(readabilityBackground, accentSeed, 0.02));
+                ? Mix(Color.FromRgb(0xFA, 0xF8, 0xFC), accentSeed, 0.035)
+                : Mix(readabilityBackground, accentSeed, 0.035));
 
         var surface = useLiquidGlass
             ? (isLight
                 ? Mix(Color.FromArgb(0xB8, 0xFF, 0xFF, 0xFF), accentSeed, 0.05)
                 : Mix(Color.FromArgb(0xB8, 0x16, 0x16, 0x19), accentSeed, 0.03))
             : (isLight
-                ? Color.FromRgb(0xFF, 0xFF, 0xFF)
-                : Mix(readabilityBackground, Colors.White, 0.09));
+                ? Mix(Color.FromRgb(0xFF, 0xFF, 0xFF), accentSeed, 0.045)
+                : Mix(readabilityBackground, Colors.White, 0.065));
 
         var surfaceRaised = useLiquidGlass
             ? (isLight
@@ -88,7 +88,7 @@ public sealed class ThemePalette
                 : Mix(Color.FromArgb(0xE0, 0x1B, 0x1B, 0x1F), Colors.White, 0.05))
             : (isLight
                 ? Mix(Color.FromRgb(0xFF, 0xFF, 0xFF), accentSeed, 0.015)
-                : Mix(surface, Colors.White, 0.04));
+                : Mix(surface, Colors.White, 0.055));
 
         var textPrimary = EnsureContrast(isLight ? Color.FromRgb(0x12, 0x18, 0x22) : Color.FromRgb(0xF5, 0xF7, 0xFB), readabilityBackground, 7.0);
         var textSecondary = EnsureContrast(Mix(textPrimary, readabilityBackground, isLight ? 0.62 : 0.38), readabilityBackground, MinimumTextContrast);
@@ -100,7 +100,7 @@ public sealed class ThemePalette
         var textFaintest = EnsureContrast(Mix(textPrimary, readabilityBackground, isLight ? 0.94 : 0.84), readabilityBackground, 2.2);
         var border = EnsureContrast(Mix(textPrimary, readabilityBackground, isLight ? 0.90 : 0.80), readabilityBackground, 1.7);
 
-        var accent = EnsureContrast(accentSeed, readabilityBackground, MinimumAccentContrast);
+        var accent = EnsureContrast(isLight ? Mix(accentSeed, Colors.Black, 0.10) : Mix(accentSeed, Colors.White, 0.40), readabilityBackground, MinimumAccentContrast);
         var accentPressed = Mix(accent, isLight ? Colors.Black : Colors.White, isLight ? 0.16 : 0.12);
         var accentSoft = WithAlpha(accent, (byte)(isLight ? 0x26 : 0x36));
         var accentText = PickReadableForeground(accent, MinimumTextContrast);

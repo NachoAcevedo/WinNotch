@@ -24,7 +24,7 @@
             </Border.OpacityMask>
             <Image x:Name="CompactAlbumArt"
                    Stretch="UniformToFill"
-                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                   RenderOptions.BitmapScalingMode="HighQuality"><Image.Clip><RectangleGeometry Rect="0,0,20,20" RadiusX="6" RadiusY="6"/></Image.Clip></Image>
         </Border>
 
         <!-- Song title -->
@@ -49,3 +49,4 @@
                               Margin="0,0,1,0"/>
     </Grid>
 </UserControl>
+

@@ -20,6 +20,8 @@ public class FullscreenService : IDisposable
 
     /// <summary>Fired when fullscreen state changes. Args: isFullscreen</summary>
     public event Action<bool>? FullscreenChanged;
+    public event Action? ForegroundChanged;
+    private IntPtr _lastForeground;
 
     public void Start()
     {
@@ -41,6 +43,12 @@ public class FullscreenService : IDisposable
 
     private void Check()
     {
+        var foreground = GetForegroundWindow();
+        if (foreground != _lastForeground)
+        {
+            _lastForeground = foreground;
+            ForegroundChanged?.Invoke();
+        }
         bool fullscreen = IsFullscreenAppRunning(out var monitor);
 
         if (fullscreen)

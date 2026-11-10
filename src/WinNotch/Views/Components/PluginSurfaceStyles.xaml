@@ -4,6 +4,7 @@
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="RoundedScrollBarStyle.xaml"/>
         <ResourceDictionary Source="IconButtonStyle.xaml"/>
+        <ResourceDictionary Source="MaterialStyles.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 
     <SolidColorBrush x:Key="PluginAccentBrush" Color="#0A84FF"/>
@@ -48,7 +49,7 @@
 
     <Style x:Key="PluginPrimaryButton" TargetType="Button" BasedOn="{StaticResource PluginSecondaryButton}">
         <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
-        <Setter Property="Background" Value="{StaticResource PluginAccentBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
@@ -64,7 +65,7 @@
                             <Setter TargetName="Chrome" Property="Opacity" Value="0.92"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Chrome" Property="Background" Value="{StaticResource PluginAccentPressedBrush}"/>
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource AccentBrush}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.55"/>
@@ -112,7 +113,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Chrome" Property="Background" Value="{StaticResource PluginAccentSoftBrush}"/>
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -134,7 +135,7 @@
         <Setter Property="MinHeight" Value="92"/>
     </Style>
 
-    <Style x:Key="PluginFieldComboBox" TargetType="ComboBox">
+    <Style x:Key="PluginFieldComboBox" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="Background" Value="{DynamicResource SegmentedBgBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource SegmentedBgBrush}"/>
@@ -165,7 +166,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Chrome" Property="Background" Value="{StaticResource PluginAccentSoftBrush}"/>
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource PressedOverlayBrush}"/>
@@ -198,7 +199,7 @@
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Track" Property="Background" Value="{StaticResource PluginAccentBrush}"/>
+                            <Setter TargetName="Track" Property="Background" Value="{DynamicResource AccentBrush}"/>
                             <Setter TargetName="Thumb" Property="Margin" Value="23,3,0,3"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -214,3 +215,4 @@
     </Style>
 
 </ResourceDictionary>
+

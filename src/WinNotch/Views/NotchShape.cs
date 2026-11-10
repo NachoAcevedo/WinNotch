@@ -11,6 +11,16 @@ namespace WinNotch.Views;
 /// </summary>
 public class NotchShape : System.Windows.Shapes.Shape
 {
+    private static void ConstrainRadii(double available, ref double top, ref double bottom)
+    {
+        top = Math.Max(0, top);
+        bottom = Math.Max(0, bottom);
+        double total = top + bottom;
+        if (total <= 0 || total <= available) return;
+        double scale = Math.Max(0, available) / total;
+        top *= scale;
+        bottom *= scale;
+    }
     public static readonly DependencyProperty TopCornerRadiusProperty =
         DependencyProperty.Register(nameof(TopCornerRadius), typeof(double), typeof(NotchShape),
             new FrameworkPropertyMetadata(6.0, FrameworkPropertyMetadataOptions.AffectsRender));
@@ -58,6 +68,7 @@ public class NotchShape : System.Windows.Shapes.Shape
     /// </summary>
     public static Geometry CreateNotchGeometry(Rect rect, double topR, double bottomR)
     {
+        ConstrainRadii(Math.Min(rect.Height, rect.Width / 2), ref topR, ref bottomR);
         double minX = rect.Left;
         double minY = rect.Top;
         double maxX = rect.Right;
@@ -124,6 +135,7 @@ public class NotchShape : System.Windows.Shapes.Shape
     /// </summary>
     public static Geometry CreateSideNotchGeometry(Rect rect, double topR, double bottomR, bool isLeft)
     {
+        ConstrainRadii(Math.Min(rect.Width, rect.Height / 2), ref topR, ref bottomR);
         double minX = rect.Left;
         double minY = rect.Top;
         double maxX = rect.Right;

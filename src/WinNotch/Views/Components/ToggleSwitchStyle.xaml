@@ -3,7 +3,7 @@
 
     <CubicEase x:Key="SwitchEase" EasingMode="EaseOut"/>
 
-    <!-- iOS-style toggle switch for CheckBox -->
+    <!-- Compact Material-style switch; existing interaction is unchanged. -->
     <Style x:Key="ToggleSwitch" TargetType="CheckBox">
         <Setter Property="Width" Value="40"/>
         <Setter Property="Height" Value="22"/>
@@ -33,6 +33,7 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Track" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                            <Setter TargetName="Thumb" Property="Background" Value="{DynamicResource AccentTextBrush}"/>
                             <Trigger.EnterActions>
                                 <BeginStoryboard>
                                     <Storyboard>
@@ -54,6 +55,7 @@
                                 </BeginStoryboard>
                             </Trigger.ExitActions>
                         </Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>

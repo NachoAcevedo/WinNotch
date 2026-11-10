@@ -29,7 +29,7 @@
                 <ControlTemplate TargetType="Slider">
                     <Grid VerticalAlignment="Center">
                         <Border x:Name="TrackBg"
-                                Height="3" CornerRadius="1.5"
+                                Height="6" CornerRadius="3"
                                 Background="{DynamicResource ProgressTrackBrush}"
                                 VerticalAlignment="Center"/>
                         <Track x:Name="PART_Track">
@@ -44,3 +44,4 @@
     </Style>
 
 </ResourceDictionary>
+

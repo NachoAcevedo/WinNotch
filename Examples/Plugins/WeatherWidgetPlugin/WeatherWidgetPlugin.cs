@@ -203,24 +203,22 @@ public sealed class WeatherWidgetPlugin : PluginBase, IUIPlugin
 
     private async Task<WeatherLocation?> FetchLocationAsync()
     {
-        var response = await HttpClient.GetFromJsonAsync<IpWhoIsResponse>("https://ipwho.is/");
-        if (response?.Success != true)
+        var path = System.IO.Path.Combine(Context!.GetPluginDataPath(Id), "location.json");
+        if (!System.IO.File.Exists(path))
             return null;
-
-        if (string.IsNullOrWhiteSpace(response.City))
+        var response = System.Text.Json.JsonSerializer.Deserialize<WeatherLocation>(
+            await System.IO.File.ReadAllTextAsync(path));
+        if (response == null || string.IsNullOrWhiteSpace(response.City)
+            || !double.IsFinite(response.Latitude) || !double.IsFinite(response.Longitude)
+            || Math.Abs(response.Latitude) > 90 || Math.Abs(response.Longitude) > 180)
             return null;
-
-        return new WeatherLocation(
-            response.City.Trim(),
-            string.IsNullOrWhiteSpace(response.CountryCode) ? string.Empty : response.CountryCode.Trim(),
-            response.Latitude,
-            response.Longitude);
+        return response;
     }
 
     private async Task<WeatherSnapshot?> FetchWeatherAsync(WeatherLocation location)
     {
         var url =
-            $"https://api.open-meteo.com/v1/forecast?latitude={location.Latitude:0.####}&longitude={location.Longitude:0.####}" +
+            FormattableString.Invariant($"https://api.open-meteo.com/v1/forecast?latitude={location.Latitude:0.####}&longitude={location.Longitude:0.####}") +
             "&current=temperature_2m,weather_code,is_day,apparent_temperature" +
             "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
             "&timezone=auto&forecast_days=1";

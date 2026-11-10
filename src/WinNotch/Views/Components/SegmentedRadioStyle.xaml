@@ -14,7 +14,7 @@
                 <ControlTemplate TargetType="RadioButton">
                     <Border x:Name="Bg"
                             Background="Transparent"
-                            CornerRadius="8"
+                            CornerRadius="12"
                             Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
                         <ContentPresenter x:Name="Content"

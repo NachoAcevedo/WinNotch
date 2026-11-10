@@ -15,6 +15,28 @@ namespace WinNotch.Services;
 /// </summary>
 public class ShelfService
 {
+    private readonly string _statePath;
+    public ShelfService(string? statePath = null)
+    {
+        _statePath = statePath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WinNotch", "shelf.json");
+        try
+        {
+            if (File.Exists(_statePath)) AddFiles(System.Text.Json.JsonSerializer.Deserialize<string[]>(File.ReadAllText(_statePath)) ?? Array.Empty<string>());
+        }
+        catch { }
+    }
+
+    private void SaveReferences()
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_statePath)!);
+            var temporary = _statePath + ".tmp";
+            File.WriteAllText(temporary, System.Text.Json.JsonSerializer.Serialize(Items.Select(item => item.FilePath).ToArray()));
+            File.Move(temporary, _statePath, true);
+        }
+        catch (Exception ex) { System.Diagnostics.Trace.TraceWarning($"Shelf state: {ex.Message}"); }
+    }
     public ObservableCollection<ShelfItem> Items { get; } = new();
 
     public event Action? ShelfChanged;
@@ -25,6 +47,7 @@ public class ShelfService
     {
         foreach (var path in paths)
         {
+            if (!File.Exists(path) && !Directory.Exists(path)) continue;
             // Avoid duplicates
             bool exists = false;
             foreach (var item in Items)
@@ -54,18 +77,21 @@ public class ShelfService
             Items.Add(item2);
         }
 
+        SaveReferences();
         ShelfChanged?.Invoke();
     }
 
     public void Remove(ShelfItem item)
     {
         Items.Remove(item);
+        SaveReferences();
         ShelfChanged?.Invoke();
     }
 
     public void Clear()
     {
         Items.Clear();
+        SaveReferences();
         ShelfChanged?.Invoke();
     }
 

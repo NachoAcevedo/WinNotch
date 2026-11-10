@@ -10,13 +10,35 @@
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         AllowDrop="True"
-        Title="WinNotch">
+        Title="WinNotch" FontFamily="Segoe UI Variable Text, Segoe UI" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
 
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Components/IconButtonStyle.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="CardTab" TargetType="TabItem">
+                <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                <Setter Property="Padding" Value="7,5"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="FontWeight" Value="Medium"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TabItem">
+                            <Border x:Name="TabBackground" CornerRadius="13" Margin="0,0,2,0" Padding="{TemplateBinding Padding}" Background="Transparent">
+                                <ContentPresenter ContentSource="Header"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="TabBackground" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -115,10 +137,6 @@
                                             Grid.Column="2"
                                             VerticalAlignment="Center"
                                             Margin="0,0,6,0"/>
-                    <views:HudOverlay x:Name="HudOverlay"
-                                      Grid.ColumnSpan="3"
-                                      VerticalAlignment="Center"
-                                      Margin="6,0,6,0"/>
                 </Grid>
 
                 <!-- Open state content -->
@@ -131,7 +149,7 @@
                     </Grid.RowDefinitions>
 
                     <!-- Main content (music + calendar) -->
-                    <Grid x:Name="MainOpenContent" Grid.Row="0">
+                    <Grid x:Name="MainOpenContent" Grid.Row="0" SizeChanged="OnCardContentSizeChanged">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
@@ -140,13 +158,28 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <views:MusicPlayerView x:Name="MusicPlayer" Grid.Column="0"/>
-
-                        <!-- Calendar panel -->
-                        <StackPanel x:Name="CalendarPanel" Grid.Column="1" Orientation="Horizontal">
-                            <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="8,4,8,4"/>
-                            <views:CalendarView x:Name="CalendarPanel_View"/>
-                        </StackPanel>
+                        <TabControl x:Name="CardTabs" Grid.Column="0" Grid.ColumnSpan="2"
+                                    Background="Transparent" BorderThickness="0"
+                                    Foreground="{DynamicResource TextPrimaryBrush}" SelectionChanged="OnCardSelectionChanged">
+                            <TabControl.Template>
+                                <ControlTemplate TargetType="TabControl">
+                                    <DockPanel LastChildFill="True">
+                                        <Border DockPanel.Dock="Top" CornerRadius="16" Background="{DynamicResource SurfaceBrush}" Padding="3" Margin="0,0,0,6"><TabPanel IsItemsHost="True"/></Border>
+                                        <Border x:Name="CardBody" CornerRadius="18" Background="{DynamicResource SurfaceBrush}" Padding="8,6" ClipToBounds="True">
+                                            <ContentPresenter ContentSource="SelectedContent"/>
+                                        </Border>
+                                    </DockPanel>
+                                </ControlTemplate>
+                            </TabControl.Template>
+                            <TabItem x:Name="MusicCardTab" Header="Música" Style="{StaticResource CardTab}">
+                                <views:MusicPlayerView x:Name="MusicPlayer"/>
+                            </TabItem>
+                            <TabItem x:Name="CalendarCardTab" Header="Calendario" Style="{StaticResource CardTab}">
+                                <StackPanel x:Name="CalendarPanel" Orientation="Horizontal">
+                                    <views:CalendarView x:Name="CalendarPanel_View"/>
+                                </StackPanel>
+                            </TabItem>
+                        </TabControl>
 
                         <!-- Plugin accessory content -->
                         <StackPanel x:Name="PluginAccessoryPanel" Grid.Column="2" Orientation="Horizontal"
@@ -167,15 +200,11 @@
                                 Width="24" Height="24"
                                 VerticalAlignment="Top" Margin="4,0,0,0"
                                 ToolTip="Settings">
-                            <TextBlock Text="⚙" FontSize="13" Foreground="{DynamicResource TextSubtleBrush}"/>
+                            <TextBlock FontFamily="Segoe Fluent Icons" Text="&#xE713;" FontSize="13" Foreground="{DynamicResource TextSubtleBrush}"/>
                         </Button>
                     </Grid>
 
                     <!-- File shelf (visible when files are shelved) -->
-                    <views:ShelfView x:Name="ShelfPanel"
-                                     Grid.Row="1"
-                                     Visibility="Collapsed"
-                                     Margin="0,4,0,0"/>
 
                     <!-- Plugin open content -->
                     <StackPanel x:Name="PluginOpenPanel" Grid.Row="2"
@@ -184,6 +213,7 @@
                     <!-- Inline settings (hidden by default, shown when gear clicked) - slides down in top mode -->
                     <views:InlineSettingsView x:Name="InlineSettings"
                                               Grid.Row="3"
+                                              MinHeight="320"
                                               Visibility="Collapsed"
                                               Margin="0,6,0,0"/>
                 </Grid>
@@ -203,10 +233,13 @@
                         </TextBlock.LayoutTransform>
                     </TextBlock>
                     <!-- Vertical HUD Overlay for volume/brightness -->
-                    <views:HudOverlay x:Name="VerticalHudOverlay"
-                                      HorizontalAlignment="Center"
-                                      Margin="0,8,0,0"/>
                 </StackPanel>
+
+                <!-- Transient HUDs are independent of the closed/minimal content opacity. -->
+                <views:HudOverlay x:Name="HudOverlay" VerticalAlignment="Center" Margin="6,0,6,0"/>
+                <views:HudOverlay x:Name="VerticalHudOverlay" HorizontalAlignment="Center" VerticalAlignment="Center" Width="280" Height="24">
+                    <views:HudOverlay.LayoutTransform><RotateTransform Angle="90"/></views:HudOverlay.LayoutTransform>
+                </views:HudOverlay>
 
                 <!-- Vertical open content (side dock) - expands to the right when settings opened -->
                 <Grid x:Name="VerticalOpenContent" Opacity="0" Visibility="Collapsed"
@@ -235,7 +268,7 @@
                             <Border Width="100" Height="100" CornerRadius="12"
                                     ClipToBounds="True" HorizontalAlignment="Center" Margin="0,0,0,8"
                                     Background="{DynamicResource SegmentedBgBrush}">
-                                <Image x:Name="SideAlbumArt" Stretch="UniformToFill"/>
+                                <Image x:Name="SideAlbumArt" Stretch="UniformToFill"><Image.Clip><RectangleGeometry Rect="0,0,100,100" RadiusX="18" RadiusY="18"/></Image.Clip></Image>
                             </Border>
                             <TextBlock x:Name="SideSongTitle" Text=""
                                        FontSize="12" FontWeight="SemiBold"
@@ -286,18 +319,18 @@
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <Button Click="OnSidePrevClick"
                                         Style="{StaticResource IconButton}" Width="28" Height="28">
-                                    <TextBlock Text="⏮" FontSize="14"
+                                    <TextBlock FontFamily="Segoe Fluent Icons" Text="&#xE892;" FontSize="14"
                                                Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </Button>
                                 <Button Click="OnSidePlayClick"
                                         Style="{StaticResource IconButton}" Width="32" Height="32"
                                         Margin="12,0">
-                                    <TextBlock x:Name="SidePlayIcon" Text="▶" FontSize="16"
+                                    <TextBlock x:Name="SidePlayIcon" FontFamily="Segoe Fluent Icons" Text="&#xE768;" FontSize="16"
                                                Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </Button>
                                 <Button Click="OnSideNextClick"
                                         Style="{StaticResource IconButton}" Width="28" Height="28">
-                                    <TextBlock Text="⏭" FontSize="14"
+                                    <TextBlock FontFamily="Segoe Fluent Icons" Text="&#xE893;" FontSize="14"
                                                Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </Button>
                             </StackPanel>
@@ -315,7 +348,7 @@
                                 Width="24" Height="24"
                                 HorizontalAlignment="Center" ToolTip="Settings"
                                 Margin="0,0,0,8">
-                            <TextBlock Text="⚙" FontSize="13"
+                            <TextBlock FontFamily="Segoe Fluent Icons" Text="&#xE713;" FontSize="13"
                                        Foreground="{DynamicResource TextSubtleBrush}"/>
                         </Button>
                     </StackPanel>
@@ -336,3 +369,8 @@
         </Canvas>
     </Grid>
 </Window>
+
+
+
+
+

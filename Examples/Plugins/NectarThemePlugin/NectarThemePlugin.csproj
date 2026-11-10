@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.22621.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>NectarThemePlugin</AssemblyName>
+    <RootNamespace>PersonalCards</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Se carga en tiempo de ejecución con XamlReader (no se compila como Page). -->
+    <Page Remove="NectarStyles.xaml" />
+    <EmbeddedResource Include="NectarStyles.xaml" LogicalName="NectarStyles.xaml" />
+    <None Include="Fonts\*.*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- WinNotch.dll extraído del single-file WinNotch.exe (sfextract). No se copia a la salida. -->
+    <Reference Include="WinNotch">
+      <HintPath>..\ref\bundle\WinNotch.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

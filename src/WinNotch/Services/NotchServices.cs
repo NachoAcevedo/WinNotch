@@ -21,6 +21,8 @@ public sealed class NotchServices : IDisposable
     public CalendarService Calendar { get; } = new();
     public ShelfService Shelf { get; } = new();
     public FullscreenService Fullscreen { get; } = new();
+    public CapsLockService CapsLock { get; } = new();
+    public MediaFeedbackService MediaFeedback { get; } = new();
     public WebcamService Webcam { get; } = new();
 
     private Task? _initTask;
@@ -37,6 +39,8 @@ public sealed class NotchServices : IDisposable
     private async Task InitializeAsync(AppSettings settings)
     {
         await Media.InitializeAsync();
+        MediaFeedback.Initialize(Media.MediaInfo);
+        ApplyFeedbackSettings(settings);
         AudioCapture.Start();
         Volume.Initialize();
         Brightness.Initialize();
@@ -48,6 +52,8 @@ public sealed class NotchServices : IDisposable
 
     public void Dispose()
     {
+        CapsLock.Dispose();
+        MediaFeedback.Dispose();
         AudioCapture.Dispose();
         Media.Dispose();
         Volume.Dispose();
@@ -57,4 +63,11 @@ public sealed class NotchServices : IDisposable
         Fullscreen.Dispose();
         Webcam.Dispose();
     }
+
+    public void ApplyFeedbackSettings(AppSettings settings)
+    {
+        if (settings.ShowCapsLockFeedback) CapsLock.Start(); else CapsLock.Stop();
+        MediaFeedback.SetEnabled(settings.ShowMusicFeedback);
+    }
+
 }

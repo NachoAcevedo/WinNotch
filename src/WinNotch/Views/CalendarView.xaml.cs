@@ -47,7 +47,7 @@ public partial class CalendarView : UserControl
             {
                 Text = "No upcoming events",
                 Foreground = faintBrush,
-                FontSize = 10,
+                FontSize = 12,
                 FontStyle = FontStyles.Italic,
                 Margin = new Thickness(0, 4, 0, 0)
             });
@@ -92,7 +92,7 @@ public partial class CalendarView : UserControl
             {
                 Text = ev.TimeDisplay,
                 Foreground = mutedBrush,
-                FontSize = 10,
+                FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 6, 0),
                 Width = 36
@@ -103,13 +103,16 @@ public partial class CalendarView : UserControl
             {
                 Text = ev.Title,
                 Foreground = primaryBrush,
-                FontSize = 10,
+                FontSize = 12,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 90
+                MaxWidth = 220
             });
 
-            EventsPanel.Children.Add(item);
+            var surface = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 7, 10, 7), Margin = new Thickness(0, 3, 0, 3), Child = item };
+            surface.SetResourceReference(Border.BackgroundProperty, "SurfaceRaisedBrush");
+            EventsPanel.Children.Add(surface);
         }
     }
 }
+

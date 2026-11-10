@@ -13,10 +13,10 @@
             </ResourceDictionary.MergedDictionaries>
 
             <Style x:Key="SectionHeader" TargetType="TextBlock">
-                <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
                 <Setter Property="FontSize" Value="10"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
-                <Setter Property="Margin" Value="0,8,0,4"/>
+                <Setter Property="Margin" Value="2,12,0,6"/>
             </Style>
             <Style x:Key="SettingLabel" TargetType="TextBlock">
                 <Setter Property="Foreground" Value="{DynamicResource SettingLabelBrush}"/>
@@ -39,7 +39,7 @@
                         Style="{StaticResource IconButton}"
                         Width="24" Height="24"
                         VerticalAlignment="Center" ToolTip="Back">
-                    <TextBlock Text="←" FontSize="14" Foreground="{DynamicResource TextMutedBrush}"/>
+                    <TextBlock FontFamily="Segoe Fluent Icons" Text="&#xE72B;" FontSize="14" Foreground="{DynamicResource TextMutedBrush}"/>
                 </Button>
                 <TextBlock Text="Settings" Foreground="{DynamicResource TextPrimaryBrush}"
                            FontSize="14" FontWeight="SemiBold"
@@ -51,12 +51,12 @@
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Style="{StaticResource RoundedScrollViewer}">
-            <StackPanel Margin="2,0,2,0">
+            <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="18" Padding="10,2"><StackPanel Margin="2,0,2,0">
 
                 <!-- General -->
                 <TextBlock Text="GENERAL" Style="{StaticResource SectionHeader}"/>
 
-                <Grid Height="28" Margin="0,2">
+                <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Start on boot" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="StartOnBootCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -65,7 +65,7 @@
 
                 <!-- Hover mode -->
                 <TextBlock Text="Hover behavior" Foreground="{DynamicResource TextSubtleBrush}" FontSize="10" Margin="0,4,0,2"/>
-                <Border Background="{DynamicResource SegmentedBgBrush}" CornerRadius="10" Padding="2" Height="30">
+                <Border Background="{DynamicResource SegmentedBgBrush}" CornerRadius="15" Padding="2" Height="30">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -85,7 +85,7 @@
 
                 <!-- Theme selector -->
                 <TextBlock Text="Theme" Foreground="{DynamicResource TextSubtleBrush}" FontSize="10" Margin="0,4,0,2"/>
-                <Border Background="{DynamicResource SegmentedBgBrush}" CornerRadius="10" Padding="2" Height="30">
+                <Border Background="{DynamicResource SegmentedBgBrush}" CornerRadius="15" Padding="2" Height="30">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -100,7 +100,7 @@
                     </Grid>
                 </Border>
 
-                <Grid Height="28" Margin="0,2">
+                <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Adapt to Windows theme" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="AdaptToWindowsThemeCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -110,7 +110,7 @@
                            Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,0,4"
                            TextWrapping="Wrap"/>
 
-                <Grid Height="28" Margin="0,2">
+                <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Show shadow" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowShadowCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -120,55 +120,89 @@
                 <!-- Music -->
                 <TextBlock Text="MUSIC" Style="{StaticResource SectionHeader}"/>
 
-                <Grid Height="28" Margin="0,2">
+                <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Music controls" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowMusicCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
 
-                <Grid Height="28" Margin="0,2">
+                <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Audio visualizer" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowVisualizerCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
 
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Avisos de play, pausa y canción" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="MusicFeedbackCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Avisos de Caps Lock" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="CapsLockFeedbackCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+
                 <!-- System HUD -->
                 <TextBlock Text="SYSTEM HUD" Style="{StaticResource SectionHeader}"/>
 
-                <Grid Height="28" Margin="0,2">
+                <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Volume HUD" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="VolumeHudCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
 
-                <Grid Height="28" Margin="0,2">
+                <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Brightness HUD" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="BrightnessHudCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
 
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Tarjeta de clima" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="ShowWeatherCheck" Style="{StaticResource ToggleSwitch}"
+                              HorizontalAlignment="Right" VerticalAlignment="Center"
+                              Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Tarjeta de tareas" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="ShowTasksCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Tarjeta de IA (Codex / Claude)" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="ShowAgentCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Dock de archivos" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="ShowFilesCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Notch mínimo siempre visible" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="AlwaysShowMinimumCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+                <TextBlock Text="Visible sobre ventanas maximizadas y juegos. Pasá el mouse para abrirlo."
+                           Foreground="{DynamicResource TextMutedBrush}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,6"/>
                 <!-- Battery & Calendar -->
                 <TextBlock Text="WIDGETS" Style="{StaticResource SectionHeader}"/>
 
-                <Grid Height="28" Margin="0,2">
+                <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Battery indicator" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowBatteryCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
 
-                <Grid Height="28" Margin="0,2">
+                <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Calendar panel" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowCalendarCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
 
-                <Grid Height="28" Margin="0,2">
+                <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Webcam mirror" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowWebcamCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -198,7 +232,7 @@
                 <!-- Screens -->
                 <TextBlock Text="SCREENS" Style="{StaticResource SectionHeader}"/>
 
-                <Grid Height="28" Margin="0,2">
+                <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Reserve space at top" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ReserveSpaceCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -208,7 +242,7 @@
                            Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,0,4"
                            TextWrapping="Wrap"/>
 
-                <Grid Height="28" Margin="0,2">
+                <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Island on every screen" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowOnAllScreensCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -218,7 +252,7 @@
                            Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,0,4"
                            TextWrapping="Wrap"/>
 
-                <Grid Height="28" Margin="0,2">
+                <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Synchronize islands" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="SyncIslandsCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -231,7 +265,7 @@
                 <!-- Beta Features -->
                 <TextBlock Text="BETA FEATURES" Style="{StaticResource SectionHeader}"/>
 
-                <Grid Height="28" Margin="0,2">
+                <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Liquid Glass Theme" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="LiquidGlassCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -273,7 +307,8 @@
                     </Button>
                 </Grid>
 
-            </StackPanel>
+            </StackPanel></Border>
         </ScrollViewer>
     </Grid>
 </UserControl>
+

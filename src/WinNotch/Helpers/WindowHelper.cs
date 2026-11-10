@@ -46,6 +46,19 @@ public static class WindowHelper
         SetWindowLong(hwnd, GWL_EXSTYLE, exStyle);
     }
 
+    public static void EnableTextInput(Window window)
+    {
+        var hwnd = new WindowInteropHelper(window).Handle;
+        SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) & ~WS_EX_NOACTIVATE);
+        window.Activate();
+    }
+
+    public static void KeepAbove(Window window)
+    {
+        var hwnd = new WindowInteropHelper(window).Handle;
+        SetWindowPos(hwnd, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
+    }
+
     /// <summary>
     /// Excludes the window from screen capture APIs (BitBlt, CopyFromScreen, etc.).
     /// The window remains visible on the actual display but invisible to capture.

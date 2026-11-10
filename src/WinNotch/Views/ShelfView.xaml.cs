@@ -43,7 +43,7 @@ public partial class ShelfView : UserControl
         bool hasItems = _service.HasItems;
         ShelfItemsControl.Visibility = hasItems ? Visibility.Visible : Visibility.Collapsed;
         ClearAllButton.Visibility = hasItems ? Visibility.Visible : Visibility.Collapsed;
-        ItemCountText.Text = hasItems ? $"{_service.Items.Count} file{(_service.Items.Count > 1 ? "s" : "")}" : "";
+        ItemCountText.Text = hasItems ? $"{_service.Items.Count} archivo(s)" : "";
         EmptyState.Visibility = hasItems ? Visibility.Collapsed : Visibility.Visible;
     }
 
@@ -148,7 +148,15 @@ public partial class ShelfView : UserControl
                 {
                     _itemDragStarted = true;
                     var data = new DataObject(DataFormats.FileDrop, new[] { item.FilePath });
-                    DragDrop.DoDragDrop(fe, data, DragDropEffects.Copy | DragDropEffects.Move);
+                    data.SetData("Preferred DropEffect", new System.IO.MemoryStream(BitConverter.GetBytes(2)));
+                    var notchWindow = Window.GetWindow(this) as NotchWindow;
+                    notchWindow?.SetShelfDragInProgress(true);
+                    try
+                    {
+                        var result = DragDrop.DoDragDrop(fe, data, DragDropEffects.Copy | DragDropEffects.Move);
+                        if ((result & (DragDropEffects.Copy | DragDropEffects.Move)) != 0) _service?.Remove(item);
+                    }
+                    finally { notchWindow?.SetShelfDragInProgress(false); _itemDragStarted = false; }
                 }
             }
         }

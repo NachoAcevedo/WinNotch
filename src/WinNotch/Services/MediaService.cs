@@ -112,11 +112,12 @@ public class MediaService : IDisposable
     private async Task UpdateMediaPropertiesAsync()
     {
         if (_session == null) return;
+        var session = _session;
 
         try
         {
-            var props = await _session.TryGetMediaPropertiesAsync();
-            if (props == null) return;
+            var props = await session.TryGetMediaPropertiesAsync();
+            if (props == null || session != _session) return;
 
             MediaInfo.Title = props.Title ?? string.Empty;
             MediaInfo.Artist = props.Artist ?? string.Empty;
@@ -128,6 +129,7 @@ public class MediaService : IDisposable
                 try
                 {
                     using var stream = await props.Thumbnail.OpenReadAsync();
+                    if (session != _session) return;
                     var bitmap = new BitmapImage();
                     bitmap.BeginInit();
                     bitmap.CacheOption = BitmapCacheOption.OnLoad;

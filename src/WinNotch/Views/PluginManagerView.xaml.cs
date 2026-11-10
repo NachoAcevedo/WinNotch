@@ -832,8 +832,8 @@ public partial class PluginManagerView : UserControl
     private Brush GetMutedBrush() => GetBrush("TextMutedBrush", Color.FromRgb(136, 136, 136));
     private Brush GetSurfaceBrush() => GetBrush("SegmentedBgBrush", Color.FromRgb(26, 26, 28));
     private Brush GetTagBrush() => GetBrush("HoverOverlayBrush", Color.FromArgb(24, 255, 255, 255));
-    private Brush GetAccentBrush() => GetBrush("PluginAccentBrush", Color.FromRgb(10, 132, 255));
-    private Brush GetAccentSoftBrush() => GetBrush("PluginAccentSoftBrush", Color.FromArgb(31, 10, 132, 255));
+    private Brush GetAccentBrush() => GetBrush("AccentBrush", Color.FromRgb(10, 132, 255));
+    private Brush GetAccentSoftBrush() => GetBrush("AccentSoftBrush", Color.FromArgb(31, 10, 132, 255));
     private Brush GetPositiveBrush() => GetBrush("PluginPositiveBrush", Color.FromRgb(52, 199, 89));
     private Brush GetErrorBrush() => GetBrush("PluginNegativeBrush", Color.FromRgb(255, 107, 107));
 
@@ -854,3 +854,4 @@ public partial class PluginManagerView : UserControl
             ?? Application.Current?.TryFindResource(resourceKey) as Style;
     }
 }
+

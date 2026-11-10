@@ -68,6 +68,8 @@ public class AppSettings
     // Music
     public bool ShowMusicControls { get; set; } = true;
     public bool ShowVisualizer { get; set; } = true;
+    public bool ShowMusicFeedback { get; set; } = true;
+    public bool ShowCapsLockFeedback { get; set; } = true;
 
     // HUD
     public bool ShowVolumeHud { get; set; } = true;
@@ -75,6 +77,11 @@ public class AppSettings
 
     // Calendar
     public bool ShowCalendar { get; set; } = true;
+    public bool ShowWeather { get; set; } = false;
+    public bool ShowTasks { get; set; } = true;
+    public bool ShowAgent { get; set; } = true;
+    public bool ShowFiles { get; set; } = true;
+    public bool AlwaysShowMinimum { get; set; } = false;
 
     // Battery
     public bool ShowBattery { get; set; } = true;

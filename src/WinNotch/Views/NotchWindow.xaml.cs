@@ -18,6 +18,92 @@ namespace WinNotch.Views;
 public partial class NotchWindow : Window
 {
     private readonly NotchViewModel _vm;
+    private bool HasActiveHud => HudOverlay.IsShowing || VerticalHudOverlay.IsShowing;
+    private bool _incomingFileDrag;
+
+    private void OnHudPresentationChanged() => Dispatcher.Invoke(() =>
+    {
+        UpdateClosedContentVisibility();
+        RefreshOverlayPresentation();
+    });
+
+    private void OnHudDismissed() => Dispatcher.Invoke(() =>
+    {
+        UpdateClosedContentVisibility();
+        RefreshOverlayPresentation();
+    });
+
+    private void RefreshOverlayPresentation()
+    {
+        double width;
+        double height;
+        if (HasActiveHud)
+        {
+            width = _dock == NotchDock.Top ? NotchConstants.HudWidth : 52;
+            height = _dock == NotchDock.Top ? 52 : NotchConstants.HudWidth;
+        }
+        else if (_vm.NotchState == NotchState.Open)
+        {
+            width = _dock == NotchDock.Top ? GetOpenWidth() : NotchConstants.SideOpenWidth + (_isSettingsExpanded ? 280 + NotchConstants.OpenTopRadius : 0);
+            height = _dock == NotchDock.Top ? (_isSettingsExpanded ? GetTopSettingsHeight() : GetTopOpenHeight()) : GetSideOpenHeight();
+        }
+        else if (_vm.NotchState == NotchState.Peeking && !_settings.AlwaysShowMinimum)
+        {
+            width = _dock == NotchDock.Top ? NotchConstants.PeekWidth : NotchConstants.PeekHeight;
+            height = _dock == NotchDock.Top ? NotchConstants.PeekHeight : NotchConstants.PeekWidth;
+        }
+        else
+        {
+            width = _dock == NotchDock.Top ? ClosedWidth : ClosedHeight;
+            height = _dock == NotchDock.Top ? ClosedHeight : ClosedWidth;
+        }
+        _widthSpring.AnimateTo(width, _currentWidth);
+        _heightSpring.AnimateTo(height, _currentHeight);
+        UpdateNotchVisuals();
+    }
+    private double ClosedWidth => _settings.AlwaysShowMinimum ? 96 : NotchConstants.ClosedWidth;
+    private double ClosedHeight => _settings.AlwaysShowMinimum ? 12 : NotchConstants.ClosedHeight;
+    private readonly Dictionary<string, TabItem> _pluginCardTabs = new();
+    private ShelfView? _shelfCardView;
+    private bool CardIsVisible(string key) => _pluginCardTabs.TryGetValue(key, out var tab) && tab.Visibility == Visibility.Visible;
+    private bool CardIsSelected(string key) => _pluginCardTabs.TryGetValue(key, out var tab) && CardTabs.SelectedItem == tab;
+    private bool IsCardEnabled(string key) => key switch
+    {
+        "weather" => _settings.ShowWeather,
+        "tasks" => _settings.ShowTasks,
+        "agent" => _settings.ShowAgent,
+        "files" => _settings.ShowFiles,
+        _ => true
+    };
+    private bool _shelfDragInProgress;
+    public bool ShelfDragInProgress => _shelfDragInProgress;
+    public void SetShelfDragInProgress(bool active)
+    {
+        _shelfDragInProgress = active;
+        if (!active && !_isMouseOverNotch) TransitionToClose();
+    }
+    private bool FullscreenOnThisMonitor => _fullscreenService.IsFullscreen &&
+        _fullscreenService.FullscreenMonitor == ScreenHelper.GetMonitorHandle(this);
+
+    private void ApplyFullscreenVisibility(bool enteringFullscreen = false)
+    {
+        bool fullscreen = FullscreenOnThisMonitor;
+        bool hidden = fullscreen && !_settings.AlwaysShowMinimum;
+        NotchCanvas.Opacity = hidden ? 0 : 1;
+        IsHitTestVisible = !hidden;
+        if (_settings.AlwaysShowMinimum)
+        {
+            if (enteringFullscreen && !_isMouseOverNotch) TransitionToClose();
+            Topmost = true;
+            WindowHelper.KeepAbove(this);
+        }
+    }
+
+    private void OnCardSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded || e.Source != CardTabs) return;
+        RefreshPluginHostLayout();
+    }
 
     // Spring animators for each animated property
     private readonly SpringAnimator _widthSpring;
@@ -138,8 +224,8 @@ public partial class NotchWindow : Window
         _contentOpacitySpring = new SpringAnimator(0.35, 0.90);
 
         // Set initial values
-        _currentWidth = NotchConstants.ClosedWidth;
-        _currentHeight = NotchConstants.ClosedHeight;
+        _currentWidth = ClosedWidth;
+        _currentHeight = ClosedHeight;
         _currentTopRadius = NotchConstants.ClosedTopRadius;
         _currentBottomRadius = NotchConstants.ClosedBottomRadius;
         _currentShadowOpacity = 0.0;
@@ -185,7 +271,7 @@ public partial class NotchWindow : Window
         {
             var screen = ScreenHelper.FindScreenByDevice(_screenDevice);
             double scale = ScreenHelper.GetScaleForScreen(screen);
-            int strip = (int)Math.Ceiling((NotchConstants.ClosedHeight + 2) * scale);
+            int strip = (int)Math.Ceiling((ClosedHeight + 2) * scale);
             _appBar.ReserveTop(screen.Bounds, strip);
         }
         else
@@ -253,6 +339,8 @@ public partial class NotchWindow : Window
     {
         // Global one-time init happens once app-wide; every island awaits it
         await _services.EnsureInitializedAsync(_settings);
+        InlineSettings.SetBrightnessAvailability(_brightnessService.IsSupported);
+        VerticalInlineSettings.SetBrightnessAvailability(_brightnessService.IsSupported);
 
         // Bind views to services
         MusicPlayer.Bind(_mediaService);
@@ -297,8 +385,10 @@ public partial class NotchWindow : Window
 
         // Volume & Brightness
         HudOverlay.Bind(_volumeService, _brightnessService);
+        HudOverlay.BindFeedback(_services.CapsLock, _services.MediaFeedback);
         VerticalHudOverlay.IsActive = false;
         VerticalHudOverlay.Bind(_volumeService, _brightnessService);
+        VerticalHudOverlay.BindFeedback(_services.CapsLock, _services.MediaFeedback);
 
         // Battery
         BatteryIndicator.Bind(_batteryService);
@@ -308,7 +398,6 @@ public partial class NotchWindow : Window
         CalendarPanel.Visibility = _settings.ShowCalendar ? Visibility.Visible : Visibility.Collapsed;
 
         // File Shelf
-        ShelfPanel.Bind(_shelfService);
         _shelfService.ShelfChanged += () => Dispatcher.Invoke(UpdateShelfVisibility);
 
         // Webcam mirror
@@ -350,54 +439,15 @@ public partial class NotchWindow : Window
         {
             Dispatcher.Invoke(() =>
             {
-                bool hideThisIsland = isFs &&
-                    _fullscreenService.FullscreenMonitor == ScreenHelper.GetMonitorHandle(this);
-
-                NotchCanvas.Opacity = hideThisIsland ? 0 : 1;
-                IsHitTestVisible = !hideThisIsland;
+                ApplyFullscreenVisibility(enteringFullscreen: isFs);
             });
         };
+        _fullscreenService.ForegroundChanged += () => Dispatcher.Invoke(() => ApplyFullscreenVisibility(enteringFullscreen: true));
 
-        // When HUD shows, expand notch and hide other content
-        // Top dock HUD: expand width only (v0.1.0 behavior)
-        HudOverlay.HudShown += () => Dispatcher.Invoke(() =>
-        {
-            if (_vm.NotchState != NotchState.Open)
-            {
-                LiveActivity.Visibility = Visibility.Collapsed;
-                ClockWidget.Visibility = Visibility.Collapsed;
-                BatteryIndicator.Suppressed = true;
-                _widthSpring.AnimateTo(NotchConstants.HudWidth, _currentWidth);
-            }
-        });
-        HudOverlay.HudDismissed += () => Dispatcher.Invoke(() =>
-        {
-            UpdateClosedContentVisibility();
-            BatteryIndicator.Suppressed = false;
-            if (_vm.NotchState != NotchState.Open)
-            {
-                _widthSpring.AnimateTo(NotchConstants.ClosedWidth, _currentWidth);
-            }
-        });
-
-        // Side dock HUD: expand height only
-        VerticalHudOverlay.HudShown += () => Dispatcher.Invoke(() =>
-        {
-            if (_vm.NotchState != NotchState.Open)
-            {
-                SideTimeSmall.Visibility = Visibility.Collapsed;
-                _heightSpring.AnimateTo(NotchConstants.HudWidth, _currentHeight);
-            }
-        });
-        VerticalHudOverlay.HudDismissed += () => Dispatcher.Invoke(() =>
-        {
-            SideTimeSmall.Visibility = Visibility.Visible;
-            if (_vm.NotchState != NotchState.Open)
-            {
-                _heightSpring.AnimateTo(NotchConstants.ClosedWidth, _currentHeight);
-            }
-        });
-
+        HudOverlay.HudShown += OnHudPresentationChanged;
+        VerticalHudOverlay.HudShown += OnHudPresentationChanged;
+        HudOverlay.HudDismissed += OnHudDismissed;
+        VerticalHudOverlay.HudDismissed += OnHudDismissed;
         // Apply all persisted settings now that every component is bound —
         // without this, toggles like ShowMusicControls or ShowBattery only
         // take effect after the user touches a setting.
@@ -447,11 +497,35 @@ public partial class NotchWindow : Window
         PluginAccessoryPanel.Visibility = Visibility.Collapsed;
         VerticalPluginClosedPanel.Children.Clear();
         VerticalPluginOpenPanel.Children.Clear();
+        string? selectedKey = (CardTabs.SelectedItem as TabItem)?.Tag is ICardPlugin selectedPlugin ? selectedPlugin.CardKey : null;
+        foreach (var tab in _pluginCardTabs.Values)
+        {
+            tab.Content = null;
+            CardTabs.Items.Remove(tab);
+        }
+        _pluginCardTabs.Clear();
+        _shelfCardView = null;
 
         foreach (var uiPlugin in _pluginManager.GetUIPlugins())
         {
             try
             {
+                if (uiPlugin is ICardPlugin cardPlugin)
+                {
+                    var view = cardPlugin.GetUIElement(UIPluginLocation.CustomTab);
+                    if (view != null)
+                    {
+                        var tab = new TabItem
+                        {
+                            Header = cardPlugin.CardTitle, Content = view, Tag = cardPlugin,
+                            Style = (Style)FindResource("CardTab"),
+                            Visibility = IsCardEnabled(cardPlugin.CardKey) ? Visibility.Visible : Visibility.Collapsed
+                        };
+                        _pluginCardTabs[cardPlugin.CardKey] = tab;
+                        if (cardPlugin.CardKey == "files") _shelfCardView = view as ShelfView;
+                    }
+                    continue;
+                }
                 var closedElement = uiPlugin.GetUIElement(UIPluginLocation.ClosedContent);
                 if (closedElement != null)
                 {
@@ -491,7 +565,19 @@ public partial class NotchWindow : Window
             }
         }
 
+        foreach (var tab in _pluginCardTabs.Values.OrderBy(tab => ((ICardPlugin)tab.Tag).CardOrder))
+            CardTabs.Items.Add(tab);
+        if (selectedKey != null && _pluginCardTabs.TryGetValue(selectedKey, out var selectedTab) && selectedTab.Visibility == Visibility.Visible)
+            CardTabs.SelectedItem = selectedTab;
+        EnsureVisibleCardSelected();
+        UpdateShelfVisibility();
         RefreshPluginHostLayout();
+    }
+
+    private void EnsureVisibleCardSelected()
+    {
+        if (CardTabs.SelectedItem is not TabItem selected || selected.Visibility != Visibility.Visible)
+            CardTabs.SelectedItem = CardTabs.Items.OfType<TabItem>().FirstOrDefault(tab => tab.Visibility == Visibility.Visible);
     }
 
     private static UIElement WrapAccessoryElement(UIElement element)
@@ -560,8 +646,9 @@ public partial class NotchWindow : Window
     {
         var info = _mediaService.MediaInfo;
         bool hasMusic = _settings.ShowMusicControls && info.HasMedia && info.IsPlaying;
-        LiveActivity.Visibility = hasMusic ? Visibility.Visible : Visibility.Collapsed;
-        ClockWidget.Visibility = hasMusic ? Visibility.Collapsed : Visibility.Visible;
+        LiveActivity.Visibility = hasMusic && !HasActiveHud ? Visibility.Visible : Visibility.Collapsed;
+        ClockWidget.Visibility = hasMusic || HasActiveHud ? Visibility.Collapsed : Visibility.Visible;
+        BatteryIndicator.Suppressed = HasActiveHud;
     }
 
     #region Vertical Side Content
@@ -583,7 +670,7 @@ public partial class NotchWindow : Window
         if (prop == null || prop == nameof(info.AlbumArt))
             SideAlbumArt.Source = info.AlbumArt;
         if (prop == null || prop == nameof(info.IsPlaying))
-            SidePlayIcon.Text = info.IsPlaying ? "⏸" : "▶";
+            SidePlayIcon.Text = info.IsPlaying ? "\uE769" : "\uE768";
         if (prop == null || prop == nameof(info.HasMedia))
             SideMusicPanel.Visibility = info.HasMedia ? Visibility.Visible : Visibility.Collapsed;
 
@@ -821,29 +908,39 @@ public partial class NotchWindow : Window
         _heightSpring.AnimateTo(GetSideOpenHeight(), _currentHeight);
     }
 
-    private bool ShouldReserveShelfSpace()
-    {
-        return _shelfService.HasItems || ShelfPanel.Visibility == Visibility.Visible;
-    }
+    private const double SettingsViewportHeight = 320;
 
     private double GetTopOpenHeight()
     {
-        double baseHeight = ShouldReserveShelfSpace()
-            ? NotchConstants.OpenHeightWithShelf
-            : NotchConstants.OpenHeight;
-
-        return baseHeight + GetMeasuredPanelHeight(PluginOpenPanel, Math.Max(220, GetOpenWidth() - 48));
+        // Use the same width as OpenContent: shape insets (60) and margins (24).
+        // Measuring the complete row includes the tabs, padding, gear and webcam.
+        double width = Math.Max(120, GetOpenWidth() - 84);
+        MainOpenContent.Measure(new Size(width, double.PositiveInfinity));
+        double height = Math.Ceiling(MainOpenContent.DesiredSize.Height);
+        if (PluginOpenPanel.Children.Count > 0)
+            height += GetMeasuredPanelHeight(PluginOpenPanel, width);
+        // Only the shape's vertical insets (30) and outer content margins (16).
+        return height + 46;
     }
 
+    private bool _cardLayoutRefreshPending;
+    private void OnCardContentSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (!e.HeightChanged || !IsLoaded || _dock != NotchDock.Top || _vm.NotchState != NotchState.Open || _cardLayoutRefreshPending)
+            return;
+        _cardLayoutRefreshPending = true;
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+        {
+            _cardLayoutRefreshPending = false;
+            if (IsLoaded && _dock == NotchDock.Top && _vm.NotchState == NotchState.Open)
+                RefreshPluginHostLayout();
+        }));
+    }
     private double GetTopSettingsHeight()
     {
-        double baseHeight = ShouldReserveShelfSpace()
-            ? NotchConstants.OpenSettingsHeightWithShelf
-            : NotchConstants.OpenSettingsHeight;
-
-        return baseHeight + GetMeasuredPanelHeight(PluginOpenPanel, Math.Max(220, GetOpenWidth() - 48));
+        // Keep the settings viewport readable regardless of the selected card.
+        return GetTopOpenHeight() + SettingsViewportHeight + 6;
     }
-
     private double GetSideOpenHeight()
     {
         return NotchConstants.SideOpenHeight + GetMeasuredPanelHeight(VerticalPluginOpenPanel, 136);
@@ -946,8 +1043,8 @@ public partial class NotchWindow : Window
         {
             // During drag the mouse handler sizes the window (physical px);
             // here we only lay content out against the DIP pill size
-            double dragW = NotchConstants.ClosedWidth * 0.8;
-            double dragH = NotchConstants.ClosedHeight * 0.8;
+            double dragW = ClosedWidth * 0.8;
+            double dragH = ClosedHeight * 0.8;
             windowW = dragW;
             windowH = dragH;
             offsetX = 0;
@@ -1036,6 +1133,18 @@ public partial class NotchWindow : Window
         }
 
         // Invisible layers must not swallow clicks (WPF hit-tests opacity-0 elements)
+        if (_settings.AlwaysShowMinimum)
+        {
+            ClosedContent.Opacity = 0;
+            VerticalClosedContent.Opacity = 0;
+        }
+        if (HasActiveHud)
+        {
+            ClosedContent.Opacity = 0;
+            VerticalClosedContent.Opacity = 0;
+            OpenContent.Opacity = 0;
+            VerticalOpenContent.Opacity = 0;
+        }
         OpenContent.IsHitTestVisible = OpenContent.Opacity > 0.5;
         ClosedContent.IsHitTestVisible = ClosedContent.Opacity > 0.5;
         VerticalOpenContent.IsHitTestVisible = VerticalOpenContent.Opacity > 0.5;
@@ -1074,6 +1183,8 @@ public partial class NotchWindow : Window
 
     private void TransitionToOpen()
     {
+        HudOverlay.Dismiss();
+        VerticalHudOverlay.Dismiss();
         if (_vm.NotchState == NotchState.Open) return;
         _vm.Open();
         NotifyPluginsStateChanged(NotchState.Open);
@@ -1134,6 +1245,7 @@ public partial class NotchWindow : Window
 
     private void TransitionToClose()
     {
+        if (_shelfDragInProgress || _incomingFileDrag) return;
         if (_vm.NotchState == NotchState.Closed) return;
         NotifyPluginsStateChanged(NotchState.Closed);
         if (!_applyingSyncedState)
@@ -1148,6 +1260,7 @@ public partial class NotchWindow : Window
         }
 
         _vm.Close();
+        WindowHelper.MakeOverlayWindow(this);
 
         _widthSpring.Response = 0.45;
         _widthSpring.DampingFraction = 1.0;
@@ -1156,20 +1269,21 @@ public partial class NotchWindow : Window
 
         if (_dock == NotchDock.Top)
         {
-            _widthSpring.AnimateTo(NotchConstants.ClosedWidth, _currentWidth);
-            _heightSpring.AnimateTo(NotchConstants.ClosedHeight, _currentHeight);
+            _widthSpring.AnimateTo(ClosedWidth, _currentWidth);
+            _heightSpring.AnimateTo(ClosedHeight, _currentHeight);
         }
         else
         {
             // Side: narrow width, tall height
-            _widthSpring.AnimateTo(NotchConstants.ClosedHeight, _currentWidth);
-            _heightSpring.AnimateTo(NotchConstants.ClosedWidth, _currentHeight);
+            _widthSpring.AnimateTo(ClosedHeight, _currentWidth);
+            _heightSpring.AnimateTo(ClosedWidth, _currentHeight);
         }
 
         _topRadiusSpring.AnimateTo(NotchConstants.ClosedTopRadius, _currentTopRadius);
         _bottomRadiusSpring.AnimateTo(NotchConstants.ClosedBottomRadius, _currentBottomRadius);
         _shadowOpacitySpring.AnimateTo(ClosedShadowOpacity, _currentShadowOpacity);
         _contentOpacitySpring.AnimateTo(0.0, _currentContentOpacity);
+        if (HasActiveHud) RefreshOverlayPresentation();
     }
 
     #endregion
@@ -1186,7 +1300,7 @@ public partial class NotchWindow : Window
         {
             _hoverOpenTimer?.Stop();
 
-            if (_settings.HoverMode == HoverMode.HoverPeekClickOpen)
+            if (_settings.HoverMode == HoverMode.HoverPeekClickOpen && !_settings.AlwaysShowMinimum)
             {
                 // Peek mode: slight expand on hover, click to fully open
                 _hoverOpenTimer = new DispatcherTimer
@@ -1223,6 +1337,7 @@ public partial class NotchWindow : Window
 
     private void OnNotchMouseLeave(object sender, MouseEventArgs e)
     {
+        if (_shelfDragInProgress) { _isMouseOverNotch = false; return; }
         if (_isDragging) return;
         _isMouseOverNotch = false;
         _hoverOpenTimer?.Stop();
@@ -1310,8 +1425,8 @@ public partial class NotchWindow : Window
         // Move window in physical px, sized for the cursor's current screen DPI
         double dragScale = ScreenHelper.GetScaleForScreen(ScreenHelper.ScreenFromPhysicalPoint(
             new System.Drawing.Point((int)currentScreen.X, (int)currentScreen.Y)));
-        int pillW = (int)Math.Round(NotchConstants.ClosedWidth * 0.8 * dragScale);
-        int pillH = (int)Math.Round(NotchConstants.ClosedHeight * 0.8 * dragScale);
+        int pillW = (int)Math.Round(ClosedWidth * 0.8 * dragScale);
+        int pillH = (int)Math.Round(ClosedHeight * 0.8 * dragScale);
         WindowHelper.SetWindowRectPhysical(this,
             (int)currentScreen.X - pillW / 2,
             (int)currentScreen.Y - pillH / 2,
@@ -1347,8 +1462,8 @@ public partial class NotchWindow : Window
         _appBar.Release();
 
         // Target drag pill size
-        double pillW = NotchConstants.ClosedWidth * 0.8;
-        double pillH = NotchConstants.ClosedHeight * 0.8;
+        double pillW = ClosedWidth * 0.8;
+        double pillH = ClosedHeight * 0.8;
 
         // If coming from a side dock, immediately set dimensions to horizontal
         if (_dock == NotchDock.Left || _dock == NotchDock.Right)
@@ -1478,14 +1593,14 @@ public partial class NotchWindow : Window
 
         if (_dock == NotchDock.Top)
         {
-            _widthSpring.AnimateTo(NotchConstants.ClosedWidth, _currentWidth);
-            _heightSpring.AnimateTo(NotchConstants.ClosedHeight, _currentHeight);
+            _widthSpring.AnimateTo(ClosedWidth, _currentWidth);
+            _heightSpring.AnimateTo(ClosedHeight, _currentHeight);
         }
         else
         {
             // Side dock: swap width/height (tall & narrow)
-            _widthSpring.AnimateTo(NotchConstants.ClosedHeight, _currentWidth);
-            _heightSpring.AnimateTo(NotchConstants.ClosedWidth, _currentHeight);
+            _widthSpring.AnimateTo(ClosedHeight, _currentWidth);
+            _heightSpring.AnimateTo(ClosedWidth, _currentHeight);
         }
 
         _topRadiusSpring.AnimateTo(NotchConstants.ClosedTopRadius, _currentTopRadius);
@@ -1746,6 +1861,7 @@ public partial class NotchWindow : Window
     public void ApplySettings(AppSettings settings)
     {
         _settings = settings;
+        _services.ApplyFeedbackSettings(settings);
 
         // Apply liquid glass theme if toggled
         _themeService.Apply(settings);
@@ -1756,6 +1872,11 @@ public partial class NotchWindow : Window
         MusicPlayer.Visibility = settings.ShowMusicControls ? Visibility.Visible : Visibility.Collapsed;
         BatteryIndicator.UserEnabled = settings.ShowBattery;
         CalendarPanel.Visibility = settings.ShowCalendar ? Visibility.Visible : Visibility.Collapsed;
+        MusicCardTab.Visibility = settings.ShowMusicControls ? Visibility.Visible : Visibility.Collapsed;
+        CalendarCardTab.Visibility = settings.ShowCalendar ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var entry in _pluginCardTabs)
+            entry.Value.Visibility = IsCardEnabled(entry.Key) ? Visibility.Visible : Visibility.Collapsed;
+        EnsureVisibleCardSelected();
         CompactVisualizer_SetVisible(settings.ShowVisualizer);
         UpdateClosedContentVisibility();
 
@@ -1764,6 +1885,10 @@ public partial class NotchWindow : Window
         HudOverlay.BrightnessHudEnabled = settings.ShowBrightnessHud;
         VerticalHudOverlay.VolumeHudEnabled = settings.ShowVolumeHud;
         VerticalHudOverlay.BrightnessHudEnabled = settings.ShowBrightnessHud;
+        HudOverlay.CapsLockFeedbackEnabled = settings.ShowCapsLockFeedback;
+        VerticalHudOverlay.CapsLockFeedbackEnabled = settings.ShowCapsLockFeedback;
+        HudOverlay.MusicFeedbackEnabled = settings.ShowMusicFeedback;
+        VerticalHudOverlay.MusicFeedbackEnabled = settings.ShowMusicFeedback;
 
         // Webcam
         _webcamService.SetTargetFps(settings.WebcamFps);
@@ -1801,6 +1926,14 @@ public partial class NotchWindow : Window
 
         UpdateSpaceReservation();
 
+        ApplyFullscreenVisibility();
+        if (_vm.NotchState == NotchState.Closed)
+        {
+            _widthSpring.AnimateTo(_dock == NotchDock.Top ? ClosedWidth : ClosedHeight, _currentWidth);
+            _heightSpring.AnimateTo(_dock == NotchDock.Top ? ClosedHeight : ClosedWidth, _currentHeight);
+        }
+        if (HasActiveHud) RefreshOverlayPresentation();
+
         // Re-target the shadow for the current state (ShowShadow may have toggled)
         if (!_isDragging)
         {
@@ -1813,7 +1946,7 @@ public partial class NotchWindow : Window
     private double GetOpenWidth()
     {
         double accessoryWidth = GetMeasuredPanelWidth(PluginAccessoryPanel, NotchConstants.OpenHeight);
-        bool cal = _settings.ShowCalendar;
+        bool cal = false; // Calendar now occupies its own card instead of a second column.
         bool cam = _settings.ShowWebcam;
 
         double baseWidth = NotchConstants.OpenWidth;
@@ -1932,7 +2065,8 @@ public partial class NotchWindow : Window
     private void UpdateShelfVisibility()
     {
         bool hasItems = _shelfService.HasItems;
-        ShelfPanel.Visibility = hasItems ? Visibility.Visible : Visibility.Collapsed;
+        if (_pluginCardTabs.TryGetValue("files", out var filesTab))
+            filesTab.Header = hasItems ? $"Archivos ({_shelfService.Items.Count})" : "Archivos";
 
         // Adjust open height if notch is open
         if (_vm.NotchState == NotchState.Open && !_isSettingsExpanded)
@@ -1945,19 +2079,21 @@ public partial class NotchWindow : Window
     private void OnDragEnter(object sender, DragEventArgs e)
     {
         // The file shelf lives in the horizontal (top dock) layout only
-        if (_dock != NotchDock.Top) return;
+        if (_dock != NotchDock.Top || !CardIsVisible("files") || _shelfCardView == null || _shelfDragInProgress) return;
 
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
             e.Effects = DragDropEffects.Copy;
+            _incomingFileDrag = true;
+            _hoverCloseTimer?.Stop();
+            CardTabs.SelectedItem = _pluginCardTabs["files"];
 
             // Open the notch if closed/peeking to show drop zone
             if (_vm.NotchState != NotchState.Open)
                 TransitionToOpen();
 
             // Show drop zone and expand for shelf
-            ShelfPanel.Visibility = Visibility.Visible;
-            ShelfPanel.ShowDropZone();
+            _shelfCardView.ShowDropZone();
 
             if (!_isSettingsExpanded)
             {
@@ -1970,7 +2106,8 @@ public partial class NotchWindow : Window
 
     private void OnDragOver(object sender, DragEventArgs e)
     {
-        if (_dock != NotchDock.Top) return;
+        if (_shelfDragInProgress) { e.Effects = DragDropEffects.None; e.Handled = true; return; }
+        if (_dock != NotchDock.Top || !CardIsVisible("files")) return;
 
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
@@ -1981,12 +2118,14 @@ public partial class NotchWindow : Window
 
     private void OnDragLeave(object sender, DragEventArgs e)
     {
-        ShelfPanel.HideDropZone();
+        var position = e.GetPosition(ContentGrid);
+        if (position.X >= 0 && position.Y >= 0 && position.X <= ContentGrid.ActualWidth && position.Y <= ContentGrid.ActualHeight) return;
+        _incomingFileDrag = false;
+        _shelfCardView?.HideDropZone();
 
         // If no items, collapse shelf and shrink back
         if (!_shelfService.HasItems)
         {
-            ShelfPanel.Visibility = Visibility.Collapsed;
             if (_vm.NotchState == NotchState.Open && !_isSettingsExpanded)
             {
                 _heightSpring.AnimateTo(GetTopOpenHeight(), _currentHeight);
@@ -1996,9 +2135,11 @@ public partial class NotchWindow : Window
 
     private void OnDrop(object sender, DragEventArgs e)
     {
-        if (_dock != NotchDock.Top) return;
+        if (_shelfDragInProgress) { e.Effects = DragDropEffects.None; e.Handled = true; return; }
+        if (_dock != NotchDock.Top || !CardIsVisible("files")) return;
+        _incomingFileDrag = false;
 
-        ShelfPanel.HideDropZone();
+        _shelfCardView?.HideDropZone();
 
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
@@ -2007,9 +2148,15 @@ public partial class NotchWindow : Window
             {
                 _shelfService.AddFiles(files);
             }
+            e.Effects = DragDropEffects.Copy;
             e.Handled = true;
         }
     }
 
     #endregion
 }
+
+
+
+
+

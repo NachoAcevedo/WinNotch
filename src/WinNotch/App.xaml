@@ -7,6 +7,7 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Views/Components/DarkTheme.xaml"/>
                 <ResourceDictionary Source="Views/Components/MarqueeTextStyle.xaml"/>
+                <ResourceDictionary Source="Views/Components/MaterialStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

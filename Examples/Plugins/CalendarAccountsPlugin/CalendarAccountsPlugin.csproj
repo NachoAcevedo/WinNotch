@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.22621.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>CalendarAccountsPlugin</AssemblyName>
+    <RootNamespace>PersonalCards</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Shared\SettingsDom.cs" Link="SettingsDom.cs" />
+    <!-- WinNotch.dll extraído del single-file WinNotch.exe (sfextract). No se copia a la salida. -->
+    <Reference Include="WinNotch">
+      <HintPath>..\ref\bundle\WinNotch.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

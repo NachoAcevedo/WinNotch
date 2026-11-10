@@ -358,8 +358,8 @@ public partial class PluginBrowserWindow : Window
     private System.Windows.Media.Brush GetMutedBrush() => GetBrush("TextMutedBrush", Color.FromRgb(136, 136, 136));
     private System.Windows.Media.Brush GetCardBrush() => GetBrush("SegmentedCheckedBgBrush", Color.FromRgb(42, 42, 46));
     private System.Windows.Media.Brush GetTagBrush() => GetBrush("HoverOverlayBrush", Color.FromArgb(24, 255, 255, 255));
-    private System.Windows.Media.Brush GetAccentBrush() => GetBrush("PluginAccentBrush", Color.FromRgb(10, 132, 255));
-    private System.Windows.Media.Brush GetAccentSoftBrush() => GetBrush("PluginAccentSoftBrush", Color.FromArgb(31, 10, 132, 255));
+    private System.Windows.Media.Brush GetAccentBrush() => GetBrush("AccentBrush", Color.FromRgb(10, 132, 255));
+    private System.Windows.Media.Brush GetAccentSoftBrush() => GetBrush("AccentSoftBrush", Color.FromArgb(31, 10, 132, 255));
 
     private System.Windows.Media.Brush GetBrush(string resourceKey, Color fallback)
     {
@@ -378,3 +378,4 @@ public partial class PluginBrowserWindow : Window
             ?? Application.Current?.TryFindResource(resourceKey) as Style;
     }
 }
+

@@ -30,6 +30,14 @@ public partial class InlineSettingsView : System.Windows.Controls.UserControl
         VersionText.Text = AppInfo.NameWithVersion;
     }
 
+    public void SetBrightnessAvailability(bool supported)
+    {
+        BrightnessHudCheck.IsEnabled = supported;
+        BrightnessHudCheck.ToolTip = supported
+            ? "Mostrar el indicador al cambiar el brillo"
+            : "Este monitor no expone el control de brillo que utiliza WinNotch.";
+    }
+
     public void LoadSettings(AppSettings settings)
     {
         _isLoading = true;
@@ -39,10 +47,17 @@ public partial class InlineSettingsView : System.Windows.Controls.UserControl
         ShowShadowCheck.IsChecked = settings.ShowShadow;
         ShowMusicCheck.IsChecked = settings.ShowMusicControls;
         ShowVisualizerCheck.IsChecked = settings.ShowVisualizer;
+        MusicFeedbackCheck.IsChecked = settings.ShowMusicFeedback;
+        CapsLockFeedbackCheck.IsChecked = settings.ShowCapsLockFeedback;
         VolumeHudCheck.IsChecked = settings.ShowVolumeHud;
         BrightnessHudCheck.IsChecked = settings.ShowBrightnessHud;
         ShowBatteryCheck.IsChecked = settings.ShowBattery;
         ShowCalendarCheck.IsChecked = settings.ShowCalendar;
+        ShowWeatherCheck.IsChecked = settings.ShowWeather;
+        ShowTasksCheck.IsChecked = settings.ShowTasks;
+        ShowAgentCheck.IsChecked = settings.ShowAgent;
+        ShowFilesCheck.IsChecked = settings.ShowFiles;
+        AlwaysShowMinimumCheck.IsChecked = settings.AlwaysShowMinimum;
         ShowWebcamCheck.IsChecked = settings.ShowWebcam;
         WebcamFpsSlider.Value = settings.WebcamFps;
         WebcamFpsLabel.Text = $"{settings.WebcamFps}";
@@ -73,10 +88,17 @@ public partial class InlineSettingsView : System.Windows.Controls.UserControl
         _settings.ShowShadow = ShowShadowCheck.IsChecked == true;
         _settings.ShowMusicControls = ShowMusicCheck.IsChecked == true;
         _settings.ShowVisualizer = ShowVisualizerCheck.IsChecked == true;
+        _settings.ShowMusicFeedback = MusicFeedbackCheck.IsChecked == true;
+        _settings.ShowCapsLockFeedback = CapsLockFeedbackCheck.IsChecked == true;
         _settings.ShowVolumeHud = VolumeHudCheck.IsChecked == true;
         _settings.ShowBrightnessHud = BrightnessHudCheck.IsChecked == true;
         _settings.ShowBattery = ShowBatteryCheck.IsChecked == true;
         _settings.ShowCalendar = ShowCalendarCheck.IsChecked == true;
+        _settings.ShowWeather = ShowWeatherCheck.IsChecked == true;
+        _settings.ShowTasks = ShowTasksCheck.IsChecked == true;
+        _settings.ShowAgent = ShowAgentCheck.IsChecked == true;
+        _settings.ShowFiles = ShowFilesCheck.IsChecked == true;
+        _settings.AlwaysShowMinimum = AlwaysShowMinimumCheck.IsChecked == true;
         _settings.ShowWebcam = ShowWebcamCheck.IsChecked == true;
         _settings.ShowOnAllScreens = ShowOnAllScreensCheck.IsChecked == true;
         _settings.SyncIslandsOpenState = SyncIslandsCheck.IsChecked == true;

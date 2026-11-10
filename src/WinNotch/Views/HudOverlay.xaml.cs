@@ -16,15 +16,43 @@ public partial class HudOverlay : UserControl
     private float _lastFraction;
 
     /// <summary>When false, Show() is a no-op (prevents dual-instance conflicts).</summary>
-    public bool IsActive { get; set; } = true;
+    private bool _isActive = true;
+    public bool IsActive
+    {
+        get => _isActive;
+        set { _isActive = value; if (!value) Dismiss(); }
+    }
+    public bool IsShowing => IsActive && Visibility == Visibility.Visible;
 
     /// <summary>Reflects the ShowVolumeHud setting.</summary>
-    public bool VolumeHudEnabled { get; set; } = true;
+    private bool _volumeHudEnabled = true;
+    public bool VolumeHudEnabled
+    {
+        get => _volumeHudEnabled;
+        set { _volumeHudEnabled = value; if (!value && _currentType == HudType.Volume) Dismiss(); }
+    }
 
     /// <summary>Reflects the ShowBrightnessHud setting.</summary>
-    public bool BrightnessHudEnabled { get; set; } = true;
+    private bool _brightnessHudEnabled = true;
+    public bool BrightnessHudEnabled
+    {
+        get => _brightnessHudEnabled;
+        set { _brightnessHudEnabled = value; if (!value && _currentType == HudType.Brightness) Dismiss(); }
+    }
 
-    private enum HudType { None, Volume, Brightness }
+    private enum HudType { None, Volume, Brightness, CapsLock, Music }
+    private bool _capsLockFeedbackEnabled = true;
+    public bool CapsLockFeedbackEnabled
+    {
+        get => _capsLockFeedbackEnabled;
+        set { _capsLockFeedbackEnabled = value; if (!value && _currentType == HudType.CapsLock) Dismiss(); }
+    }
+    private bool _musicFeedbackEnabled = true;
+    public bool MusicFeedbackEnabled
+    {
+        get => _musicFeedbackEnabled;
+        set { _musicFeedbackEnabled = value; if (!value && _currentType == HudType.Music) Dismiss(); }
+    }
 
     public event Action? HudShown;
     public event Action? HudDismissed;
@@ -69,14 +97,17 @@ public partial class HudOverlay : UserControl
 
     private void ShowVolume(float volume, bool muted)
     {
+        if (!IsActive || !VolumeHudEnabled) return;
+        LevelContent.Visibility = Visibility.Visible;
+        FeedbackContent.Visibility = Visibility.Collapsed;
         _currentType = HudType.Volume;
 
-        string icon = muted ? "🔇" : volume switch
+        string icon = muted ? "\uE74F" : volume switch
         {
-            < 0.01f => "🔇",
-            < 0.33f => "🔈",
-            < 0.66f => "🔉",
-            _ => "🔊"
+            < 0.01f => "\uE74F",
+            < 0.33f => "\uE992",
+            < 0.66f => "\uE993",
+            _ => "\uE767"
         };
 
         HudIcon.Text = icon;
@@ -89,12 +120,15 @@ public partial class HudOverlay : UserControl
 
     private void ShowBrightness(int brightness)
     {
+        if (!IsActive || !BrightnessHudEnabled) return;
+        LevelContent.Visibility = Visibility.Visible;
+        FeedbackContent.Visibility = Visibility.Collapsed;
         _currentType = HudType.Brightness;
 
         HudIcon.Text = brightness switch
         {
-            < 33 => "🔅",
-            _ => "🔆"
+            < 33 => "\uE706",
+            _ => "\uE706"
         };
 
         HudPercent.Text = $"{brightness}%";
@@ -110,6 +144,32 @@ public partial class HudOverlay : UserControl
         {
             SliderFill.Width = Math.Max(0, fraction * parent.ActualWidth);
         }
+    }
+
+    public void BindFeedback(CapsLockService capsLock, MediaFeedbackService music)
+    {
+        capsLock.Changed += enabled => Dispatcher.BeginInvoke(() =>
+        {
+            if (!IsActive || !CapsLockFeedbackEnabled) return;
+            _currentType = HudType.CapsLock;
+            ShowFeedback("⇪", enabled ? "Mayúsculas activadas" : "Mayúsculas desactivadas", "Caps Lock");
+        });
+        music.Changed += (icon, title, detail) => Dispatcher.BeginInvoke(() =>
+        {
+            if (!IsActive || !MusicFeedbackEnabled) return;
+            _currentType = HudType.Music;
+            ShowFeedback(icon, title, detail);
+        });
+    }
+
+    private void ShowFeedback(string icon, string title, string detail)
+    {
+        LevelContent.Visibility = Visibility.Collapsed;
+        FeedbackContent.Visibility = Visibility.Visible;
+        FeedbackIcon.Text = icon switch { "⇪" => "\uE8F8", "♫" => "\uE8D6", "▶" => "\uE768", "⏸" => "\uE769", _ => icon };
+        FeedbackTitle.Text = title;
+        FeedbackDetail.Text = detail;
+        Show();
     }
 
     private void Show()
@@ -133,8 +193,10 @@ public partial class HudOverlay : UserControl
         _dismissTimer.Start();
     }
 
-    private void Dismiss()
+    public void Dismiss()
     {
+        _dismissTimer?.Stop();
+        if (Visibility != Visibility.Visible) return;
         Visibility = Visibility.Collapsed;
         _currentType = HudType.None;
         HudDismissed?.Invoke();
@@ -160,3 +222,5 @@ public partial class HudOverlay : UserControl
         Show();
     }
 }
+
+

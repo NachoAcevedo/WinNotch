@@ -67,7 +67,7 @@ public partial class MusicPlayerView : UserControl
         }
 
         if (propertyName == null || propertyName == nameof(info.IsPlaying))
-            PlayPauseIcon.Text = info.IsPlaying ? "⏸" : "▶";
+            PlayPauseIcon.Text = info.IsPlaying ? "\uE769" : "\uE768";
 
         if (propertyName == null || propertyName == nameof(info.Position) || propertyName == nameof(info.ProgressPercent))
         {
@@ -83,7 +83,7 @@ public partial class MusicPlayerView : UserControl
 
         if (propertyName == null || propertyName == nameof(info.RepeatMode))
         {
-            RepeatIcon.Text = info.RepeatMode == 2 ? "🔂" : "🔁";
+            RepeatIcon.Text = info.RepeatMode == 2 ? "\uE8ED" : "\uE8EE";
             RepeatButton.Opacity = info.RepeatMode > 0 ? 1.0 : 0.4;
         }
 
@@ -156,3 +156,4 @@ public partial class MusicPlayerView : UserControl
         await _mediaService.SeekToAsync(percent);
     }
 }
+
