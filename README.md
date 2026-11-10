@@ -60,6 +60,7 @@ dotnet publish src/WinNotch/WinNotch.csproj -c Release -r win-x64 --self-contain
 | [BetterWeather](Plugins/BetterWeather) | Weather and forecast card. |
 | [BetterFiles](Plugins/BetterFiles) | Files card. |
 | [BetterAI](Plugins/BetterAI) | AI card backed by AgentBridge. |
+| [earTrumpet](Plugins/earTrumpet) | Windows playback outputs and per-app volume, mute and routing. |
 
 To compile a plugin on another PC, build its project from the repository root. For example:
 
