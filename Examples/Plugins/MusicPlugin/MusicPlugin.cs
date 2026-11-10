@@ -15,7 +15,7 @@ namespace PersonalCards;
 /// - Aviso de música: al cambiar de canción o darle play se muestra la portada en lugar del
 ///   ícono. En pausa (y en el resto de los avisos, como Caps Lock) queda el ícono de WinNotch.
 /// </summary>
-[WinNotchPlugin("personal.music", "Música", "1.0.0", "Personal")]
+[WinNotchPlugin("personal.music", "Música", "1.0.0", "Nacho_114")]
 public sealed class MusicPlugin : PluginBase
 {
     // Íconos que HudOverlay pone en FeedbackIcon: nueva canción (♫) y play (▶).
@@ -32,7 +32,7 @@ public sealed class MusicPlugin : PluginBase
     public override string Id => "personal.music";
     public override string Name => "Música";
     public override string Version => "1.0.0";
-    public override string Author => "Personal";
+    public override string Author => "Nacho_114";
     public override string Description => "Ajustes de música: portada del disco en el aviso de cambio de canción y de play.";
 
     public override async Task OnEnableAsync()

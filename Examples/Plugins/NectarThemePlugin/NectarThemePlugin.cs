@@ -22,7 +22,7 @@ namespace PersonalCards;
 /// - Fuente Figtree (incluida en la carpeta del plugin).
 /// - Controles con forma Nectar (NectarStyles.xaml) y esquinas de tarjetas/paneles.
 /// </summary>
-[WinNotchPlugin("personal.theme.nectar", "Tema Nectar", "1.0.0", "Personal")]
+[WinNotchPlugin("personal.theme.nectar", "Tema Nectar", "1.0.0", "Nacho_114")]
 public sealed class NectarThemePlugin : PluginBase
 {
     private const string FontKey = "NectarFont";
@@ -39,7 +39,7 @@ public sealed class NectarThemePlugin : PluginBase
     public override string Id => "personal.theme.nectar";
     public override string Name => "Tema Nectar";
     public override string Version => "1.0.0";
-    public override string Author => "Personal";
+    public override string Author => "Nacho_114";
     public override string Description => "Interfaz con el estilo de Nectar Link (Material You desde el acento de Windows).";
 
     public override async Task OnEnableAsync()

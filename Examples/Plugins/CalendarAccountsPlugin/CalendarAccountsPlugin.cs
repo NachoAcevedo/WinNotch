@@ -27,7 +27,7 @@ public sealed class CalendarAccountsSettings
 /// todas las cuentas y reemplaza la lista que muestran el panel y la pestaña.
 /// En Ajustes, debajo de "Calendar panel", agrega un interruptor por cuenta.
 /// </summary>
-[WinNotchPlugin("personal.calendar.allaccounts", "Calendario multicuenta", "1.0.0", "Personal")]
+[WinNotchPlugin("personal.calendar.allaccounts", "Calendario multicuenta", "1.0.0", "Nacho_114")]
 public sealed class CalendarAccountsPlugin : PluginBase
 {
     private const int MaxEvents = 5;
@@ -63,7 +63,7 @@ public sealed class CalendarAccountsPlugin : PluginBase
     public override string Id => "personal.calendar.allaccounts";
     public override string Name => "Calendario multicuenta";
     public override string Version => "1.0.0";
-    public override string Author => "Personal";
+    public override string Author => "Nacho_114";
     public override string Description => "Muestra en el calendario los eventos de todas las cuentas de Outlook clásico.";
 
     public override async Task OnEnableAsync()

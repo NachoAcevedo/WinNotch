@@ -256,7 +256,7 @@ public sealed class TasksCardView : UserControl
     }
 }
 
-[WinNotchPlugin("personal.card.tasks", "Tareas", "1.1.0", "Personal")]
+[WinNotchPlugin("personal.card.tasks", "Tareas", "1.1.0", "Nacho_114")]
 public sealed class TasksCardPlugin : CardPluginBase
 {
     public override string Id => "personal.card.tasks";

@@ -174,7 +174,7 @@ public sealed class AgentCardView : UserControl
     }
 }
 
-[WinNotchPlugin("personal.card.agent", "IA", "1.2.0", "Personal")]
+[WinNotchPlugin("personal.card.agent", "IA", "1.2.0", "Nacho_114")]
 public sealed class AgentCardPlugin : CardPluginBase
 {
     // Cuánto queda abierto el notch al llegar una respuesta, si no se pasa el mouse por encima.

@@ -2,7 +2,7 @@ using System.Windows;
 using WinNotch.Plugins;
 using WinNotch.Views;
 namespace PersonalCards;
-[WinNotchPlugin("personal.card.files", "Archivos", "1.0.0", "Personal")]
+[WinNotchPlugin("personal.card.files", "Archivos", "1.0.0", "Nacho_114")]
 public sealed class FilesCardPlugin : CardPluginBase
 {
  public override string Id => "personal.card.files";

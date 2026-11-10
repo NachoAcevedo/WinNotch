@@ -19,7 +19,7 @@ public abstract class CardPluginBase : PluginBase, ICardPlugin
     public abstract int CardOrder { get; }
     public virtual double CardHeight => 160;
     public override string Version => "1.0.0";
-    public override string Author => "Personal";
+    public override string Author => "Nacho_114";
     protected abstract UIElement CreateCard();
     public UIElement? GetUIElement(UIPluginLocation location) => location == UIPluginLocation.CustomTab
         ? _view ??= CreateCard() : null;

@@ -19,7 +19,7 @@ namespace PersonalCards;
 /// explorer muestre el host; y además, por las dudas, se oculta el host apenas aparece
 /// (hook EVENT_OBJECT_SHOW sobre explorer).
 /// </summary>
-[WinNotchPlugin("personal.flyouts.hidenative", "Ocultar avisos de Windows", "1.0.0", "Personal")]
+[WinNotchPlugin("personal.flyouts.hidenative", "Ocultar avisos de Windows", "1.0.0", "Nacho_114")]
 public sealed class NativeFlyoutHiderPlugin : PluginBase
 {
     private const uint EventObjectCreate = 0x8000;
@@ -48,7 +48,7 @@ public sealed class NativeFlyoutHiderPlugin : PluginBase
     public override string Id => "personal.flyouts.hidenative";
     public override string Name => "Ocultar avisos de Windows";
     public override string Version => "1.0.0";
-    public override string Author => "Personal";
+    public override string Author => "Nacho_114";
     public override string Description => "Oculta los avisos de volumen/brillo de Windows cuando el HUD de WinNotch está activado.";
 
     public override async Task OnEnableAsync()

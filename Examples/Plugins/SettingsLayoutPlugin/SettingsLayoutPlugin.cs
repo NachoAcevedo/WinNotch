@@ -10,13 +10,13 @@ namespace PersonalCards;
 /// - Las tarjetas (clima, tareas, IA, archivos) quedan en su propia sección TARJETAS.
 /// Los ajustes en sí no cambian: solo se mueven las filas de lugar.
 /// </summary>
-[WinNotchPlugin("personal.settings.layout", "Ajustes reordenados", "1.0.0", "Personal")]
+[WinNotchPlugin("personal.settings.layout", "Ajustes reordenados", "1.0.0", "Nacho_114")]
 public sealed class SettingsLayoutPlugin : PluginBase
 {
     public override string Id => "personal.settings.layout";
     public override string Name => "Ajustes reordenados";
     public override string Version => "1.0.0";
-    public override string Author => "Personal";
+    public override string Author => "Nacho_114";
     public override string Description => "Reubica Notch mínimo en Appearance, Caps Lock en System HUD y separa las tarjetas en su sección.";
 
     public override async Task OnEnableAsync()

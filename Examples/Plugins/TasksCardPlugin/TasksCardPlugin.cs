@@ -2,7 +2,7 @@ using System.Windows;
 using WinNotch.Plugins;
 using WinNotch.Views;
 namespace PersonalCards;
-[WinNotchPlugin("personal.card.tasks", "Tareas", "1.0.0", "Personal")]
+[WinNotchPlugin("personal.card.tasks", "Tareas", "1.0.0", "Nacho_114")]
 public sealed class TasksCardPlugin : CardPluginBase
 {
  public override string Id => "personal.card.tasks";

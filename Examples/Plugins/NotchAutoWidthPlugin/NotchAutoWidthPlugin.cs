@@ -18,7 +18,7 @@ namespace PersonalCards;
 /// fijos, lo reemplaza por el ancho medido del contenido.
 /// No aplica al modo "Notch mínimo" ni al notch acoplado a los costados.
 /// </summary>
-[WinNotchPlugin("personal.notch.autowidth", "Notch adaptable", "1.0.0", "Personal")]
+[WinNotchPlugin("personal.notch.autowidth", "Notch adaptable", "1.0.0", "Nacho_114")]
 public sealed class NotchAutoWidthPlugin : PluginBase
 {
     private const double FixedClosedWidth = 200.0;
@@ -52,7 +52,7 @@ public sealed class NotchAutoWidthPlugin : PluginBase
     public override string Id => "personal.notch.autowidth";
     public override string Name => "Notch adaptable";
     public override string Version => "1.0.0";
-    public override string Author => "Personal";
+    public override string Author => "Nacho_114";
     public override string Description => "El notch cerrado se ajusta al contenido visible en lugar de reservar un ancho fijo.";
 
     public override async Task OnEnableAsync()
