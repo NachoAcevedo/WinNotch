@@ -2,9 +2,9 @@ using WinNotch.Services;
 
 try
 {
-    if (args.Length < 1 || !AgentInbox.Providers.Contains(args[0])) return 1;
+    if (args.Length < 1 || !AgentProviders.All.Contains(args[0])) return 1;
     var json = args.Length >= 2 ? args[1] : new StreamReader(Console.OpenStandardInput(), new System.Text.UTF8Encoding(false, true)).ReadToEnd();
-    if (args[0] == AgentInbox.Gemini)
+    if (args[0] == AgentProviders.Gemini)
     {
         Console.Write("{\"decision\":\"stop\"}");
         if (AntigravityInbox.ReadReply(json) is { } reply)

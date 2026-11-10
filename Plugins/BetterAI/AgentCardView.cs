@@ -17,7 +17,7 @@ public sealed class AgentCardView : UserControl
     public AgentCardView()
     {
         var panel = new StackPanel();
-        _provider.ItemsSource = AgentInbox.Providers.Prepend("Automático").ToArray();
+        _provider.ItemsSource = AgentProviders.All.Prepend("Automático").ToArray();
         _provider.SelectedIndex = 0;
         panel.Children.Add(_provider);
         _reply.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
@@ -45,7 +45,7 @@ public sealed class AgentCardView : UserControl
     private void Refresh()
     {
         var selected = _provider.SelectedItem as string ?? "Automático";
-        var latest = AgentInbox.Providers.Where(provider => selected == "Automático" || selected == provider)
+        var latest = AgentProviders.All.Where(provider => selected == "Automático" || selected == provider)
             .Select(provider => LocalCards.Read<AgentReply>($"reply-{provider}.json"))
             .Where(reply => reply != null).OrderByDescending(reply => reply!.UpdatedUtc).FirstOrDefault();
         if (latest == null)

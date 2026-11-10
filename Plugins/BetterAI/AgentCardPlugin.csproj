@@ -11,7 +11,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\WinNotch\WinNotch.csproj" Private="false" />
+    <ProjectReference Include="..\..\src\WinNotch\WinNotch.csproj" Private="false" Condition="'$(WinNotchReferencePath)' == ''" />
+    <Reference Include="WinNotch" HintPath="$(WinNotchReferencePath)" Private="false" Condition="'$(WinNotchReferencePath)' != ''" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="../../src/WinNotch/Services/AgentProviders.cs" Link="AgentProviders.cs" />
+  </ItemGroup>
 </Project>

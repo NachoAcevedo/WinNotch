@@ -30,133 +30,75 @@ public sealed class AgentCardView : UserControl
 
     private readonly ComboBox _provider = new ComboBox
     {
-        Width = 150.0,
+        Width = 125.0,
         HorizontalAlignment = HorizontalAlignment.Left,
         Margin = new Thickness(0.0, 0.0, 0.0, 7.0)
     };
 
-    private readonly TextBox _reply = new TextBox
-    {
-        IsReadOnly = true,
-        TextWrapping = TextWrapping.Wrap,
-        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-        HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-        BorderThickness = new Thickness(0.0),
-        Background = Brushes.Transparent,
-        MaxHeight = ReplyMaxHeight,
-        FontSize = 12.0
-    };
-
-    private readonly TextBlock _status = new TextBlock
-    {
-        FontSize = 10.0,
-        Margin = new Thickness(0.0, 6.0, 0.0, 0.0),
-        TextTrimming = TextTrimming.CharacterEllipsis
-    };
-
-    private FileSystemWatcher? _watcher;
-    private string? _currentReplyText;
-    private readonly AgentComposer _composer;
-
-    private readonly DispatcherTimer _debounce = new DispatcherTimer
-    {
-        Interval = TimeSpan.FromMilliseconds(200.0)
-    };
-
+    private readonly CodexPanel _codex = new();
+    private readonly AgentModeSettingsView _modeSettings = new() { Visibility = Visibility.Collapsed };
+    private readonly ExternalAgentPanel _external = new();
+    private readonly StackPanel _legacyHeader = new() { Orientation = Orientation.Horizontal };
+    private bool _showingSettings;
     public AgentCardView()
     {
         ClipToBounds = true;
 
         var panel = new StackPanel();
-        _provider.ItemsSource = AgentInbox.Providers.Prepend("Automático").ToArray();
-        _provider.SelectedIndex = 0;
-        panel.Children.Add(_provider);
-        _reply.SetResourceReference(Control.ForegroundProperty, "TextPrimaryBrush");
-        panel.Children.Add(_reply);
-        _composer = new AgentComposer(() => _currentReplyText, status => _status.Text = status);
-        panel.Children.Add(_composer);
-        _status.SetResourceReference(TextBlock.ForegroundProperty, "TextMutedBrush");
-        panel.Children.Add(_status);
+        var modeSettings = AgentModeSettings.Read();
+        _provider.ItemsSource = modeSettings.Modes;
+        CodexPanel.StylePicker(_provider);
+        _provider.SelectedItem = modeSettings.Enabled(modeSettings.SelectedMode) ? modeSettings.SelectedMode : modeSettings.Modes.FirstOrDefault() ?? "Codex";
+        _codex.ModeRequested += mode => _provider.SelectedItem = mode;
+        _codex.SettingsRequested += ShowModeSettings;
+        _legacyHeader.Children.Add(_provider);
+        var configure = new Button { Content = "⋯", ToolTip = "Configurar modos", Margin = new Thickness(8, 0, 0, 7), Padding = new Thickness(6, 0, 6, 0) };
+        configure.Click += (_, _) => ShowModeSettings();
+        _legacyHeader.Children.Add(configure);
+        panel.Children.Add(_legacyHeader);
+        panel.Children.Add(_modeSettings);
+        _modeSettings.Saved += () =>
+        {
+            var settings = AgentModeSettings.Read();
+            _provider.ItemsSource = settings.Modes;
+            _provider.SelectedItem = settings.SelectedMode;
+            _showingSettings = false;
+            Refresh();
+        };
+        panel.Children.Add(_codex);
+        panel.Children.Add(_external);
         Content = panel;
 
         _provider.SelectionChanged += (_, _) => Refresh();
-        _debounce.Tick += (_, _) =>
-        {
-            _debounce.Stop();
-            Refresh();
-        };
-        Loaded += (_, _) => StartWatching();
-        Unloaded += (_, _) =>
-        {
-            _watcher?.Dispose();
-            _watcher = null;
-            _debounce.Stop();
-        };
         Refresh();
     }
 
-    private void StartWatching()
+    private void ShowModeSettings()
     {
-        Directory.CreateDirectory(LocalCards.DirectoryPath);
-        _watcher?.Dispose();
-        _watcher = new FileSystemWatcher(LocalCards.DirectoryPath, "reply-*.json")
-        {
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
-            EnableRaisingEvents = true
-        };
-
-        void Changed(object? s, FileSystemEventArgs e) =>
-            Dispatcher.BeginInvoke(() =>
-            {
-                _debounce.Stop();
-                _debounce.Start();
-            });
-        _watcher.Changed += Changed;
-        _watcher.Created += Changed;
-        _watcher.Renamed += Changed;
+        _showingSettings = true;
+        _modeSettings.Reload();
+        AgentComposer.NotifyActivity();
         Refresh();
     }
 
     private void Refresh()
     {
-        string selected = _provider.SelectedItem as string ?? "Automático";
-        var reply = AgentInbox.Providers
-            .Where(provider => selected == "Automático" || selected == provider)
-            .Select(provider => LocalCards.Read<AgentReply>("reply-" + provider + ".json"))
-            .Where(r => r != null)
-            .OrderByDescending(r => r!.UpdatedUtc)
-            .FirstOrDefault();
-
-        bool isReadOnly = (reply?.Provider ?? selected) is AgentInbox.ClaudeDesktop or AgentInbox.Gemini;
-        _composer.Visibility = isReadOnly ? Visibility.Collapsed : Visibility.Visible;
-        _currentReplyText = isReadOnly ? null : reply?.Text;
-        if (reply == null)
+        string selected = _provider.SelectedItem as string ?? "Codex";
+        bool codex = selected == "Codex";
+        _modeSettings.Visibility = _showingSettings ? Visibility.Visible : Visibility.Collapsed;
+        _legacyHeader.Visibility = !codex && !_showingSettings ? Visibility.Visible : Visibility.Collapsed;
+        _codex.Visibility = codex && !_showingSettings ? Visibility.Visible : Visibility.Collapsed;
+        _external.Visibility = !codex && !_showingSettings ? Visibility.Visible : Visibility.Collapsed;
+        if (_showingSettings) return;
+        var preferences = AgentModeSettings.Read();
+        if (preferences.Enabled(selected) && preferences.SelectedMode != selected)
         {
-            PreferredContentWidth = MinContentWidth;
-            _reply.Text = "Acá aparecerá la última respuesta terminada del proveedor seleccionado.\n\nSolo lectura: esta tarjeta no envía mensajes ni ejecuta las instrucciones de las respuestas.";
-            _status.Text = "Esperando una respuesta del proveedor seleccionado.";
-            return;
+            try { LocalCards.Write("agent-mode-settings.json", preferences with { SelectedMode = selected }); } catch (IOException) { }
         }
+        if (codex) return;
+        _external.SetMode(selected);
+        return;
 
-        // Las respuestas muy largas se recortan para que la tarjeta siga fluida.
-        string text = reply.Text.Length > MaxReplyChars
-            ? reply.Text.Substring(0, MaxReplyChars) + "\n\n… (respuesta recortada, seguí en la aplicación)"
-            : reply.Text;
-        if (_reply.Text != text)
-        {
-            _reply.Text = text;
-            _reply.ScrollToHome();
-            UpdatePreferredWidth();
-        }
-        _status.Text = $"{reply.Provider} · {reply.UpdatedUtc.ToLocalTime():dd/MM HH:mm} · guardado localmente";
-    }
-
-    /// <summary>Ancho que necesita la línea más larga de la respuesta, entre el mínimo y el máximo.</summary>
-    private void UpdatePreferredWidth()
-    {
-        var probe = new TextBlock { Text = _reply.Text, FontSize = _reply.FontSize, FontFamily = _reply.FontFamily };
-        probe.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        PreferredContentWidth = Math.Clamp(Math.Ceiling(probe.DesiredSize.Width + ReplyChrome), MinContentWidth, MaxContentWidth);
     }
 
     // Ancho más angosto que le dio WinNotch a la tarjeta: el del notch estándar, ya descontado
@@ -178,7 +120,7 @@ public sealed class AgentCardView : UserControl
     }
 }
 
-[WinNotchPlugin("personal.card.agent", "IA", "1.2.0", "Nacho_114")]
+[WinNotchPlugin("personal.card.agent", "IA", "1.6.1", "Nacho_114")]
 public sealed class AgentCardPlugin : CardPluginBase
 {
     // Cuánto queda abierto el notch al llegar una respuesta, si no se pasa el mouse por encima.
@@ -197,7 +139,7 @@ public sealed class AgentCardPlugin : CardPluginBase
 
     public override string Name => "IA";
 
-    public override string Version => "1.2.0";
+    public override string Version => "1.6.1";
 
     public override string Description => "Tarjeta independiente: IA (tamaño máximo con scroll; abre el notch al llegar una respuesta)";
 
@@ -223,6 +165,8 @@ public sealed class AgentCardPlugin : CardPluginBase
         AgentComposer.Log = msg => Context?.Log("IA: " + msg, PluginLogLevel.Info);
         AgentComposer.Activity += OnComposeActivity;
         AgentComposer.Finished += OnComposeFinished;
+        CodexPanel.HoldChanged += OnCodexHoldChanged;
+        CodexPanel.HideRequested += OnComposeFinished;
         Application.Current.Dispatcher.Invoke(() =>
         {
             HookOpenWidth();
@@ -255,6 +199,8 @@ public sealed class AgentCardPlugin : CardPluginBase
     {
         AgentComposer.Activity -= OnComposeActivity;
         AgentComposer.Finished -= OnComposeFinished;
+        CodexPanel.HoldChanged -= OnCodexHoldChanged;
+        CodexPanel.HideRequested -= OnComposeFinished;
         _composeIdle?.Stop();
         _watcher?.Dispose();
         _watcher = null;
@@ -359,9 +305,16 @@ public sealed class AgentCardPlugin : CardPluginBase
         }
     }
 
+    private void OnCodexHoldChanged()
+    {
+        if (CodexPanel.HoldOpen) OnComposeActivity();
+        else ReleaseCompose(closeIfMouseAway: false);
+    }
+
     private void ReleaseCompose(bool closeIfMouseAway)
     {
         _composeIdle?.Stop();
+        if (CodexPanel.HoldOpen) return;
         if (NotchWindowWithTabs() is not { } window)
         {
             return;
@@ -375,7 +328,7 @@ public sealed class AgentCardPlugin : CardPluginBase
     }
 
     private static DateTime LatestReplyUtc() =>
-        AgentInbox.Providers
+        new[] { "Codex", "Claude", AgentProviders.CodexVsCode, AgentProviders.ClaudeDesktop, AgentProviders.Gemini }
             .Select(provider => LocalCards.Read<AgentReply>("reply-" + provider + ".json"))
             .Where(r => r != null)
             .Select(r => r!.UpdatedUtc)
@@ -419,7 +372,7 @@ public sealed class AgentCardPlugin : CardPluginBase
             {
                 bool mouseOver = window.GetType().GetField("_isMouseOverNotch", WindowFlags)?.GetValue(window) is true
                     || window.IsMouseOver;
-                if (mouseOver)
+                if (mouseOver || CodexPanel.HoldOpen)
                 {
                     return;
                 }

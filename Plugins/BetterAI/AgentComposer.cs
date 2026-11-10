@@ -12,12 +12,14 @@ using WinNotch.Services;
 
 namespace PersonalCards;
 
+internal sealed record VsCodeReply(string Provider, string Text, DateTime UpdatedUtc, string? SessionId = null);
+
 /// <summary>
-/// Campo para responderle a Claude Code (VS Code) desde la tarjeta de IA: texto y capturas
+/// Campo para responder a Claude Code o Codex en VS Code desde la tarjeta de IA: texto y capturas
 /// pegadas con Ctrl+V. Enter envía (Shift+Enter, salto de línea), Esc cierra sin enviar.
 /// Mientras se escribe, el plugin mantiene el notch abierto (ver <see cref="Activity"/>).
 /// </summary>
-public sealed class AgentComposer : StackPanel
+internal sealed class AgentComposer : StackPanel
 {
     private const double ThumbSize = 44.0;
 
@@ -32,7 +34,7 @@ public sealed class AgentComposer : StackPanel
 
     private readonly TextBlock _placeholder = new TextBlock
     {
-        Text = "Responder a Claude… (Enter envía · Ctrl+V pega capturas)",
+        Text = "Responder en VS Code… (Enter envía · Ctrl+V pega capturas)",
         FontSize = 12.0,
         IsHitTestVisible = false,
         Margin = new Thickness(14.0, 0.0, 0.0, 0.0),
@@ -42,11 +44,13 @@ public sealed class AgentComposer : StackPanel
     private readonly WrapPanel _thumbs = new WrapPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(0.0, 0.0, 0.0, 6.0) };
     private readonly Button _send = new Button { Content = "Enviar", Margin = new Thickness(6.0, 0.0, 0.0, 0.0), VerticalAlignment = VerticalAlignment.Bottom };
     private readonly List<BitmapSource> _images = new();
-    private readonly Func<string?> _lastReplyText;
+    private readonly Func<VsCodeReply?> _lastReply;
     private readonly Action<string> _setStatus;
+    private VsCodeReply? _draftReply;
 
     /// <summary>Hubo actividad en el campo (clic, foco, tecleo): el notch tiene que seguir abierto.</summary>
     public static event Action? Activity;
+    internal static void NotifyActivity() => Activity?.Invoke();
 
     /// <summary>Se envió o se canceló con Esc: el notch se puede cerrar.</summary>
     public static event Action? Finished;
@@ -54,9 +58,9 @@ public sealed class AgentComposer : StackPanel
     /// <summary>Registro del envío en el log de WinNotch (lo asigna el plugin).</summary>
     public static Action<string>? Log;
 
-    public AgentComposer(Func<string?> lastReplyText, Action<string> setStatus)
+    public AgentComposer(Func<VsCodeReply?> lastReply, Action<string> setStatus)
     {
-        _lastReplyText = lastReplyText;
+        _lastReply = lastReply;
         _setStatus = setStatus;
         Margin = new Thickness(0.0, 8.0, 0.0, 0.0);
 
@@ -81,7 +85,7 @@ public sealed class AgentComposer : StackPanel
         _input.PreviewMouseLeftButtonDown += (_, _) => { Log?.Invoke("clic en el campo"); EnableKeyboard(); };
         _input.GotKeyboardFocus += (_, _) => { UpdatePlaceholder(); Activity?.Invoke(); };
         _input.LostKeyboardFocus += (_, _) => UpdatePlaceholder();
-        _input.TextChanged += (_, _) => { UpdatePlaceholder(); Activity?.Invoke(); };
+        _input.TextChanged += (_, _) => { UpdateDraftTarget(); UpdatePlaceholder(); Activity?.Invoke(); };
         _input.PreviewKeyDown += OnInputKey;
         _send.Click += (_, _) => Send();
         UpdatePlaceholder();
@@ -129,6 +133,7 @@ public sealed class AgentComposer : StackPanel
     {
         image.Freeze();
         _images.Add(image);
+        UpdateDraftTarget();
 
         var thumb = new Grid { Width = ThumbSize, Height = ThumbSize, Margin = new Thickness(0.0, 0.0, 6.0, 0.0) };
         thumb.Children.Add(new Border
@@ -148,6 +153,7 @@ public sealed class AgentComposer : StackPanel
         remove.Click += (_, _) =>
         {
             _images.Remove(image);
+            UpdateDraftTarget();
             _thumbs.Children.Remove(thumb);
             _thumbs.Visibility = _images.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         };
@@ -156,33 +162,54 @@ public sealed class AgentComposer : StackPanel
         _thumbs.Visibility = Visibility.Visible;
     }
 
-    private void Send()
+    private void UpdateDraftTarget()
     {
+        if (_input.Text.Length == 0 && _images.Count == 0)
+            _draftReply = null;
+        else
+            _draftReply ??= _lastReply();
+    }
+
+    private async void Send()
+    {
+        if (!_send.IsEnabled) return;
         string text = _input.Text.Trim();
-        if (text.Length == 0 && _images.Count == 0)
+        if (text.Length == 0 && _images.Count == 0) return;
+
+        var reply = _draftReply ?? _lastReply();
+        string? session = reply?.SessionId;
+        if (session == null && reply?.Provider == "Claude")
+            session = ClaudeSessions.FindByReply(reply.Text);
+        if (reply == null || session == null)
         {
+            _setStatus("No encontré la conversación en VS Code. El borrador sigue disponible.");
             return;
         }
 
-        var images = _images.ToList();
-        var session = ClaudeSessions.FindByReply(_lastReplyText());
-        Log?.Invoke($"enviar: {text.Length} caracteres, {images.Count} capturas, conversación {session ?? "(no encontrada)"}");
-        _input.Clear();
-        _images.Clear();
-        _thumbs.Children.Clear();
-        _thumbs.Visibility = Visibility.Collapsed;
-        if (session == null)
+        _send.IsEnabled = false;
+        _input.IsReadOnly = true;
+        try
         {
-            _setStatus("No encontré la conversación de Claude de esta respuesta: no se envió");
+            _setStatus("Abriendo la conversación en VS Code…");
+            if (!await VsCodeAgent.SendAsync(reply.Provider, session, text, _images.ToArray(), Dispatcher, Log))
+            {
+                _setStatus("No pude completar el envío en VS Code. Revisá el chat antes de reintentar.");
+                return;
+            }
+
+            _input.Clear();
+            _images.Clear();
+            _draftReply = null;
+            _thumbs.Children.Clear();
+            _thumbs.Visibility = Visibility.Collapsed;
+            _setStatus("Envío solicitado en VS Code.");
+        }
+        finally
+        {
+            _input.IsReadOnly = false;
+            _send.IsEnabled = true;
             Finished?.Invoke();
-            return;
         }
-        _setStatus("Enviado a Claude en VS Code");
-
-        // Primero el envío (abre el enlace mientras WinNotch todavía tiene el foco y puede
-        // cedérselo a VS Code) y después se cierra el notch.
-        _ = VsCodeClaude.SendAsync(session, text, images, Dispatcher, Log);
-        Finished?.Invoke();
     }
 }
 
@@ -244,7 +271,7 @@ internal static class ClaudeSessions
 /// frente (y abre la conversación si estaba cerrada); el texto y las capturas se pegan desde el
 /// portapapeles en el chat activo y Enter envía.
 /// </summary>
-internal static class VsCodeClaude
+internal static class VsCodeAgent
 {
     private const byte VkControl = 0x11;
     private const byte VkV = 0x56;
@@ -260,23 +287,29 @@ internal static class VsCodeClaude
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
-    public static async Task SendAsync(string session, string text, IReadOnlyList<BitmapSource> images,
+    public static async Task<bool> SendAsync(string provider, string session, string text, IReadOnlyList<BitmapSource> images,
         System.Windows.Threading.Dispatcher dispatcher, Action<string>? log)
     {
         try
         {
-            await SendCoreAsync(session, text, images, dispatcher, log);
+            return await SendCoreAsync(provider, session, text, images, dispatcher, log);
         }
         catch (Exception ex)
         {
             log?.Invoke("error al enviar: " + ex.Message);
+            return false;
         }
     }
 
-    private static async Task SendCoreAsync(string session, string text, IReadOnlyList<BitmapSource> images,
+    private static async Task<bool> SendCoreAsync(string provider, string session, string text, IReadOnlyList<BitmapSource> images,
         System.Windows.Threading.Dispatcher dispatcher, Action<string>? log)
     {
-        var uri = new StringBuilder("vscode://anthropic.claude-code/open?session=").Append(Uri.EscapeDataString(session));
+        var uri = provider switch
+        {
+            "Claude" => "vscode://anthropic.claude-code/open?session=" + Uri.EscapeDataString(session),
+            AgentProviders.CodexVsCode => "vscode://openai.chatgpt/local/" + Uri.EscapeDataString(session),
+            _ => throw new ArgumentException("Proveedor de VS Code desconocido.", nameof(provider))
+        };
 
         Process.Start(new ProcessStartInfo(uri.ToString()) { UseShellExecute = true });
         log?.Invoke("enlace abierto: " + uri.ToString()[..Math.Min(uri.Length, 120)]);
@@ -288,40 +321,51 @@ internal static class VsCodeClaude
             if (DateTime.UtcNow > deadline)
             {
                 log?.Invoke("VS Code no quedó al frente: no se tecleó nada");
-                return;
+                return false;
             }
             await Task.Delay(100);
         }
+        var targetWindow = GetForegroundWindow();
         await Task.Delay(900);
+        if (!HasFocus()) return false;
+
+        bool HasFocus() => GetForegroundWindow() == targetWindow && IsVsCodeInFront();
 
         string? previousText = dispatcher.Invoke(() => Clipboard.ContainsText() ? Clipboard.GetText() : null);
 
 
-        if (text.Length > 0)
+        try
         {
-            dispatcher.Invoke(() => Clipboard.SetText(text));
-            Press(VkControl, VkV);
-            await Task.Delay(300);
-        }
-        foreach (var image in images)
-        {
-            dispatcher.Invoke(() => Clipboard.SetImage(image));
-            Press(VkControl, VkV);
-            await Task.Delay(600);
-        }
-        log?.Invoke($"pegado en VS Code: texto {(text.Length > 0 ? "sí" : "no")}, {images.Count} capturas");
+            if (text.Length > 0)
+            {
+                if (!HasFocus()) return false;
+                dispatcher.Invoke(() => Clipboard.SetText(text));
+                Press(VkControl, VkV);
+                await Task.Delay(300);
+            }
 
-        // Lo que había copiado vuelve al portapapeles.
-        if (previousText != null)
+            foreach (var image in images)
+            {
+                if (!HasFocus()) return false;
+                dispatcher.Invoke(() => Clipboard.SetImage(image));
+                Press(VkControl, VkV);
+                await Task.Delay(600);
+            }
+        }
+        finally
         {
-            dispatcher.Invoke(() => Clipboard.SetText(previousText));
+            if (previousText != null)
+                dispatcher.Invoke(() => Clipboard.SetText(previousText));
         }
 
-        if (IsVsCodeInFront())
+        if (HasFocus())
         {
             Press(VkReturn);
             log?.Invoke("Enter enviado en VS Code");
+            return true;
         }
+
+        return false;
     }
 
     private static void Press(params byte[] keys)

@@ -10,4 +10,7 @@
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
   <ItemGroup><Compile Include="../../src/WinNotch/Services/LocalCards.cs" Link="LocalCards.cs" /></ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../src/WinNotch/Services/AgentProviders.cs" Link="AgentProviders.cs" />
+  </ItemGroup>
 </Project>

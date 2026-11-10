@@ -47,7 +47,7 @@ internal static class AntigravityInbox
         }
 
         return message == null ? null : new AgentReply(
-            AgentInbox.Gemini, message[..Math.Min(message.Length, 100000)], DateTime.UtcNow);
+            AgentProviders.Gemini, message[..Math.Min(message.Length, 100000)], DateTime.UtcNow);
     }
 
     private static string? ReadString(JsonElement value, string name) =>
