@@ -1,4 +1,6 @@
-# WinNotch
+# WinNotch — NachoAcevedo fork
+
+This repository is NachoAcevedo's personal fork of [N3uralCreativity/WinNotch](https://github.com/N3uralCreativity/WinNotch). It contains the customized WinNotch source and the plugin projects in [Examples/Plugins](Examples/Plugins).
 
 WinNotch is a Dynamic Island-inspired notch overlay for Windows. It brings media controls, calendar, battery, webcam, volume and brightness HUDs, file staging, and installable plugins into a compact surface that can live at the top or side of the screen.
 
@@ -7,11 +9,11 @@ Built with `WPF`, `.NET 8`, and `C#`.
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%2F11-blue)
 ![.NET 8](https://img.shields.io/badge/.NET-8.0-purple)
 
-## Links
+## Upstream project and plugin resources
 
 - Home page: `https://n3uralcreativity.github.io/WinNotch/`
 - Documentation: `https://n3uralcreativity.github.io/WinNotch/documentation/`
-- Releases: `https://github.com/N3uralCreativity/WinNotch/releases`
+- [Original WinNotch releases](https://github.com/N3uralCreativity/WinNotch/releases)
 - Plugin library repo: `https://github.com/N3uralCreativity/WinNotch-Plugins`
 - Plugin development guide: [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md)
 
@@ -27,15 +29,7 @@ Built with `WPF`, `.NET 8`, and `C#`.
 - Plugin Manager and Plugin Browser with online library support
 - Configurable plugins with built-in setup UI
 
-## Install
-
-### Release build
-
-1. Download the latest installer from [Releases](https://github.com/N3uralCreativity/WinNotch/releases/latest).
-2. Run `WinNotch-Setup.exe`.
-3. Launch WinNotch.
-
-### Build from source
+## Build this fork from source
 
 Requirements:
 
