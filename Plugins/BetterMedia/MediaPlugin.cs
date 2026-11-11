@@ -11,14 +11,14 @@ using WinNotch.Views;
 namespace PersonalCards;
 
 /// <summary>
-/// Ajustes de música de WinNotch, todos en un solo plugin:
-/// - Aviso de música: al cambiar de canción o darle play se muestra la portada en lugar del
+/// Ajustes de media de WinNotch, todos en un solo plugin:
+/// - Aviso de media: al cambiar de canción o darle play se muestra la portada en lugar del
 ///   ícono. En pausa (y en el resto de los avisos, como Caps Lock) queda el ícono de WinNotch.
 /// </summary>
-[WinNotchPlugin("personal.music", "Música", "1.0.0", "Nacho_114")]
-public sealed class MusicPlugin : PluginBase
+[WinNotchPlugin("personal.media", "Media", "1.1.3", "Nacho_114")]
+public sealed class MediaPlugin : PluginBase
 {
-    // Íconos que HudOverlay pone en FeedbackIcon: nueva canción (♫) y play (▶).
+    // Íconos que HudOverlay pone en FeedbackIcon: siguiente canción (♫) y play (▶).
     private const string NewSongGlyph = "";
     private const string PlayGlyph = "";
 
@@ -27,13 +27,14 @@ public sealed class MusicPlugin : PluginBase
     private static readonly FieldInfo? MediaServiceField = typeof(NotchWindow).GetField("_mediaService", Flags);
     private static readonly FieldInfo? FeedbackIconField = typeof(HudOverlay).GetField("FeedbackIcon", Flags);
 
+    private static readonly FieldInfo? FeedbackDetailField = typeof(HudOverlay).GetField("FeedbackDetail", Flags);
     private readonly List<Action> _undo = new();
 
-    public override string Id => "personal.music";
-    public override string Name => "Música";
-    public override string Version => "1.0.0";
+    public override string Id => "personal.media";
+    public override string Name => "Media";
+    public override string Version => "1.1.3";
     public override string Author => "Nacho_114";
-    public override string Description => "Ajustes de música: portada del disco en el aviso de cambio de canción y de play.";
+    public override string Description => "Controles multimedia y avisos con portada, título y artista.";
 
     public override async Task OnEnableAsync()
     {
@@ -41,7 +42,7 @@ public sealed class MusicPlugin : PluginBase
 
         if (HudField == null || MediaServiceField == null || FeedbackIconField == null)
         {
-            Context?.Log("Música: la versión de WinNotch no es compatible", PluginLogLevel.Error);
+            Context?.Log("Media: la versión de WinNotch no es compatible", PluginLogLevel.Error);
             return;
         }
 
@@ -69,16 +70,47 @@ public sealed class MusicPlugin : PluginBase
 
     private void Attach(NotchWindow window)
     {
+        if (typeof(NotchWindow).GetField("MusicCardTab", Flags)?.GetValue(window) is TabItem mediaTab)
+        {
+            var originalHeader = mediaTab.Header;
+            mediaTab.SetCurrentValue(HeaderedContentControl.HeaderProperty, "Media");
+            _undo.Add(() => mediaTab.SetCurrentValue(HeaderedContentControl.HeaderProperty, originalHeader));
+            Context?.Log("Media: título de pestaña actualizado a Media", PluginLogLevel.Info);
+        }
+        else
+        {
+            Context?.Log("Media: no se encontró la pestaña Música", PluginLogLevel.Warning);
+        }
         if (HudField!.GetValue(window) is not HudOverlay hud
             || FeedbackIconField!.GetValue(hud) is not TextBlock icon
             || icon.Parent is not Border badge
             || MediaServiceField!.GetValue(window) is not MediaService mediaService)
         {
-            Context?.Log("Música: no se encontró el aviso de música", PluginLogLevel.Warning);
+            Context?.Log("Media: no se encontró el aviso de media", PluginLogLevel.Warning);
             return;
         }
 
         MediaInfo media = mediaService.MediaInfo;
+        if (typeof(NotchWindow).GetField("MusicPlayer", Flags)?.GetValue(window) is FrameworkElement player
+            && (player.FindName("AlbumArtGrid") ?? player.FindName("AlbumArtImage")) is FrameworkElement cover)
+        {
+            _undo.Add(MediaAppLauncher.Bind(cover, mediaService, message => Context?.Log(message, PluginLogLevel.Warning)));
+            Context?.Log("Media: portada vinculada a la app multimedia activa", PluginLogLevel.Info);
+        }
+        _undo.Add(MediaAppLauncher.Bind(badge, mediaService, message => Context?.Log(message, PluginLogLevel.Warning)));
+        if (FeedbackDetailField?.GetValue(hud) is TextBlock detail)
+        {
+            var detailProperty = DependencyPropertyDescriptor.FromProperty(TextBlock.TextProperty, typeof(TextBlock));
+            EventHandler onDetail = (_, _) =>
+            {
+                bool isMedia = icon.Text == NewSongGlyph || icon.Text == PlayGlyph || icon.Text == "\uE769";
+                string artist = media.Artist ?? string.Empty;
+                if (isMedia && detail.Text != artist)
+                    detail.Text = artist;
+            };
+            detailProperty.AddValueChanged(detail, onDetail);
+            _undo.Add(() => detailProperty.RemoveValueChanged(detail, onDetail));
+        }
         var originalBackground = badge.Background;
         var originalRadius = badge.CornerRadius;
 

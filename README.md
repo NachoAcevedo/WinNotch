@@ -54,7 +54,7 @@ dotnet publish src/WinNotch/WinNotch.csproj -c Release -r win-x64 --self-contain
 | --- | --- |
 | [BetterUI](Plugins/BetterUI) | Adaptive notch width, settings layout and native flyout hiding. Each is a separate plugin project. |
 | [NectarTheme](Plugins/NectarTheme) | Nectar colors, typography and styles. |
-| [BetterMedia](Plugins/BetterMedia) | Playback notifications with album art. |
+| [BetterMedia](Plugins/BetterMedia) | Media tab and playback notifications with album art, title and artist. |
 | [BetterCalendar](Plugins/BetterCalendar) | Calendar events from all classic Outlook accounts. |
 | [BetterTasks](Plugins/BetterTasks) | Basic and Outlook variants. Both use the same plugin ID, so install only one. |
 | [BetterWeather](Plugins/BetterWeather) | Weather and forecast card. |

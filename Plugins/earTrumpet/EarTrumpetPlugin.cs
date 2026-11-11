@@ -2,19 +2,21 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
 using WinNotch.Plugins;
 
 namespace PersonalCards.Audio;
 
-[WinNotchPlugin("personal.card.eartrumpet", "earTrumpet", "1.0.0", "Nacho_114")]
+[WinNotchPlugin("personal.card.eartrumpet", "earTrumpet", "1.0.2", "Nacho_114")]
 public sealed class EarTrumpetPlugin : CardPluginBase
 {
     public override string Id => "personal.card.eartrumpet";
     public override string Name => "earTrumpet";
+    public override string Version => "1.0.2";
     public override string Author => "Nacho_114";
-    public override string Description => "Salidas de audio y mezclador por aplicación.";
+    public override string Description => "Control de volumen general, volumen por aplicación y salidas de audio.";
     public override string CardKey => "eartrumpet";
     public override string CardTitle => "Audio";
     public override int CardOrder => 65;
@@ -24,22 +26,25 @@ public sealed class EarTrumpetPlugin : CardPluginBase
 
 internal sealed class AudioMixer : StackPanel
 {
-    private sealed record Output(string? Id, string Name);
-    private sealed record Session(AudioSessionControl Control, string OutputName);
+    private sealed record Output(string? Id, string Name)
+    {
+        public override string ToString() => Name;
+    }
 
-    private readonly ComboBox _defaultOutput = new() { DisplayMemberPath = nameof(Output.Name), MinWidth = 150 };
+    private readonly ComboBox _defaultOutput = new() { DisplayMemberPath = nameof(Output.Name), MinWidth = 150, MinHeight = 28 };
     private readonly StackPanel _levels = new();
     private readonly StackPanel _apps = new();
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, FontSize = 11 };
+    private StackPanel? _openRoutes;
     private readonly List<MMDevice> _devices = new();
-    private readonly List<Session> _sessions = new();
+    private readonly List<AudioSessionControl> _sessions = new();
     private MMDeviceEnumerator? _enumerator;
     private bool _refreshing;
 
     public AudioMixer()
     {
-        var heading = new DockPanel();
-        var refresh = new Button { Content = "Actualizar", Margin = new Thickness(8, 0, 0, 0) };
+        var heading = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
+        var refresh = new Button { Content = "Actualizar", Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(8, 3, 8, 3) };
         refresh.Click += (_, _) => Refresh();
         DockPanel.SetDock(refresh, Dock.Right);
         heading.Children.Add(refresh);
@@ -53,9 +58,12 @@ internal sealed class AudioMixer : StackPanel
         };
 
         _status.SetResourceReference(TextBlock.ForegroundProperty, "TextMutedBrush");
+        Children.Add(SectionLabel("Salida principal"));
         Children.Add(heading);
         Children.Add(_levels);
+        Children.Add(SectionLabel("Aplicaciones", 10));
         Children.Add(new ScrollViewer { Content = _apps, MaxHeight = 175, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+        _status.Margin = new Thickness(0, 5, 0, 0);
         Children.Add(_status);
         Loaded += (_, _) => { if (IsVisible) Refresh(); };
         Unloaded += (_, _) => ReleaseAudio();
@@ -103,12 +111,12 @@ internal sealed class AudioMixer : StackPanel
                     if (session.State == AudioSessionState.AudioSessionStateExpired || session.IsSystemSoundsSession)
                         session.Dispose();
                     else
-                        _sessions.Add(new Session(session, device.FriendlyName));
+                        _sessions.Add(session);
                 }
             }
 
             var routes = new[] { new Output(null, "Salida predeterminada") }.Concat(outputs).ToArray();
-            foreach (var app in _sessions.GroupBy(session => session.Control.GetProcessID).Where(app => app.Key > 0))
+            foreach (var app in _sessions.GroupBy(session => session.GetProcessID).Where(app => app.Key > 0))
                 _apps.Children.Add(AppRow(app.Key, app.ToArray(), routes));
 
             if (_apps.Children.Count == 0 && string.IsNullOrEmpty(_status.Text))
@@ -122,36 +130,65 @@ internal sealed class AudioMixer : StackPanel
         finally { _refreshing = false; }
     }
 
-    private UIElement AppRow(uint processId, Session[] sessions, Output[] routes)
+    private UIElement AppRow(uint processId, AudioSessionControl[] sessions, Output[] routes)
     {
-        var first = sessions[0].Control.SimpleAudioVolume;
-        var outputs = string.Join(", ", sessions.Select(session => session.OutputName).Distinct());
         var row = new StackPanel { Margin = new Thickness(0, 6, 0, 2) };
-        var label = new TextBlock { Text = ProcessName(processId) + " · " + outputs, TextTrimming = TextTrimming.CharacterEllipsis };
+        var label = new TextBlock { Text = ProcessName(processId), TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
         label.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-        row.Children.Add(label);
 
         var route = new Button { Content = "Salida…", Margin = new Thickness(8, 0, 0, 0) };
-        var menu = new ContextMenu { PlacementTarget = route };
+        var choices = new StackPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 4, 0, 0) };
         foreach (var output in routes)
         {
-            var choice = new MenuItem { Header = output.Name };
+            var choice = new Button
+            {
+                Content = output.Name, HorizontalContentAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 0, 0, 3)
+            };
             choice.Click += (_, _) =>
             {
-                if (Change(() => WindowsAudioRouting.SetApplicationOutput(processId, output.Id)))
-                    _status.Text = "Salida solicitada. Algunas apps aplican el cambio cuando reinician su audio.";
+                if (!Change(() => WindowsAudioRouting.SetApplicationOutput(processId, output.Id))) return;
+                ToggleRoutes(choices);
+                _status.Text = "Salida solicitada. Algunas apps aplican el cambio cuando reinician su audio.";
             };
-            menu.Items.Add(choice);
+            choices.Children.Add(choice);
         }
-        route.ContextMenu = menu;
-        route.Click += (_, _) => menu.IsOpen = true;
-        var controls = VolumeControls(first.Volume, first.Mute,
-            volume => Array.ForEach(sessions, session => session.Control.SimpleAudioVolume.Volume = volume),
-            mute => Array.ForEach(sessions, session => session.Control.SimpleAudioVolume.Mute = mute));
+        route.Click += (_, _) => ToggleRoutes(choices);
+        var header = new DockPanel();
         DockPanel.SetDock(route, Dock.Right);
-        controls.Children.Insert(0, route);
-        row.Children.Add(controls);
+        header.Children.Add(route);
+        header.Children.Add(label);
+        row.Children.Add(header);
+
+        var volume = sessions[0].SimpleAudioVolume;
+        row.Children.Add(VolumeControls(volume.Volume, volume.Mute,
+            value => Array.ForEach(sessions, session => session.SimpleAudioVolume.Volume = value),
+            mute => Array.ForEach(sessions, session => session.SimpleAudioVolume.Mute = mute)));
+        row.Children.Add(choices);
         return row;
+    }
+
+    private void ToggleRoutes(StackPanel choices)
+    {
+        bool opening = _openRoutes != choices;
+        if (_openRoutes != null) _openRoutes.Visibility = Visibility.Collapsed;
+        _openRoutes = opening ? choices : null;
+        if (opening)
+        {
+            choices.Visibility = Visibility.Visible;
+            choices.BringIntoView();
+        }
+    }
+
+    private static TextBlock SectionLabel(string text, double top = 0)
+    {
+        var label = new TextBlock
+        {
+            Text = text, FontSize = 11, FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, top, 0, 2)
+        };
+        label.SetResourceReference(TextBlock.ForegroundProperty, "TextMutedBrush");
+        return label;
     }
 
     private DockPanel VolumeControls(float volume, bool muted, Action<float> setVolume, Action<bool> setMute)
@@ -162,7 +199,15 @@ internal sealed class AudioMixer : StackPanel
         mute.Click += (_, _) => Change(() => setMute(mute.IsChecked == true));
         var slider = new Slider { Minimum = 0, Maximum = 100, Value = volume * 100, MinWidth = 55, ToolTip = "Volumen" };
         slider.ValueChanged += (_, args) => Change(() => setVolume((float)(args.NewValue / 100)));
+        var percentage = new TextBlock { Width = 38, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+        percentage.SetResourceReference(TextBlock.ForegroundProperty, "TextMutedBrush");
+        percentage.SetBinding(TextBlock.TextProperty, new Binding(nameof(Slider.Value))
+        {
+            Source = slider, StringFormat = "{0:0}%"
+        });
+        DockPanel.SetDock(percentage, Dock.Right);
         row.Children.Add(mute);
+        row.Children.Add(percentage);
         row.Children.Add(slider);
         return row;
     }
@@ -196,8 +241,9 @@ internal sealed class AudioMixer : StackPanel
     private void ReleaseAudio()
     {
         _levels.Children.Clear();
+        _openRoutes = null;
         _apps.Children.Clear();
-        foreach (var session in _sessions) session.Control.Dispose();
+        foreach (var session in _sessions) session.Dispose();
         _sessions.Clear();
         foreach (var device in _devices) device.Dispose();
         _devices.Clear();
