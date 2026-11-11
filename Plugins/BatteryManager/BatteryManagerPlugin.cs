@@ -61,13 +61,17 @@ internal sealed record BatterySnapshot(DeviceBattery[] Devices, int Failures);
 
 internal sealed class BatteryCard : StackPanel
 {
-    private readonly WrapPanel _devices = new();
+    private readonly CenteredDevicePanel _devices = new();
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, FontSize = 11 };
 
     public BatteryCard(BatteryMonitor monitor)
     {
         _status.SetResourceReference(TextBlock.ForegroundProperty, "TextMutedBrush");
-        Children.Add(new ScrollViewer { Content = _devices, MaxHeight = 155, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+        Children.Add(new ScrollViewer
+        {
+            Content = _devices, MaxHeight = 155, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+        });
         Children.Add(_status);
         Loaded += (_, _) =>
         {
