@@ -24,6 +24,7 @@ def main():
         try:
             for device in provider().poll():
                 devices[device.key] = {
+                    "key": device.key,
                     "name": device.name,
                     "level": device.level,
                     "charging": device.charging,

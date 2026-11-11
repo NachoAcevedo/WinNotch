@@ -40,7 +40,7 @@ public partial class HudOverlay : UserControl
         set { _brightnessHudEnabled = value; if (!value && _currentType == HudType.Brightness) Dismiss(); }
     }
 
-    private enum HudType { None, Volume, Brightness, CapsLock, Music }
+    private enum HudType { None, Volume, Brightness, CapsLock, Music, DeviceBattery }
     private bool _capsLockFeedbackEnabled = true;
     public bool CapsLockFeedbackEnabled
     {
@@ -162,11 +162,22 @@ public partial class HudOverlay : UserControl
         });
     }
 
-    private void ShowFeedback(string icon, string title, string detail)
+    internal void ShowDeviceBattery(string name, int level, bool critical)
+    {
+        _currentType = HudType.DeviceBattery;
+        ShowFeedback("\uE850", name, critical ? $"Batería crítica · {level}%" : $"Batería baja · {level}%",
+            critical ? System.Windows.Media.Brushes.IndianRed : System.Windows.Media.Brushes.Goldenrod);
+    }
+
+    private void ShowFeedback(string icon, string title, string detail, System.Windows.Media.Brush? accent = null)
     {
         LevelContent.Visibility = Visibility.Collapsed;
         FeedbackContent.Visibility = Visibility.Visible;
         FeedbackIcon.Text = icon switch { "⇪" => "\uE8F8", "♫" => "\uE8D6", "▶" => "\uE768", "⏸" => "\uE769", _ => icon };
+        if (accent is null)
+            FeedbackIcon.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
+        else
+            FeedbackIcon.Foreground = accent;
         FeedbackTitle.Text = title;
         FeedbackDetail.Text = detail;
         Show();

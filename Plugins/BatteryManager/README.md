@@ -1,6 +1,6 @@
 # BatteryManager
 
-BatteryManager adds the **Baterías** card to WinNotch. It reads supported Bluetooth and receiver-connected devices using Halo Battery's hardware providers. The bundled reader runs only on demand while the card is visible, at most once per minute unless you press **Actualizar**.
+BatteryManager adds the **Baterías** card to WinNotch. It reads supported Bluetooth and receiver-connected devices using Halo Battery's hardware providers. The reader refreshes in the background every two minutes while BatteryManager is enabled. After the first reading, the notch briefly shows an alert when a device drops to 30% or 15%, using the critical alert if it crosses both thresholds in one reading.
 
 ## Build
 

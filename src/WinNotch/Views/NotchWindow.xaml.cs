@@ -21,6 +21,16 @@ public partial class NotchWindow : Window
     private bool HasActiveHud => HudOverlay.IsShowing || VerticalHudOverlay.IsShowing;
     private bool _incomingFileDrag;
 
+    public bool TryShowDeviceBattery(string name, int level, bool critical)
+    {
+        if (!IsVisible || FullscreenOnThisMonitor || HasActiveHud || _vm.NotchState != NotchState.Closed)
+            return false;
+
+        var hud = _dock == NotchDock.Top ? HudOverlay : VerticalHudOverlay;
+        hud.ShowDeviceBattery(name, level, critical);
+        return true;
+    }
+
     private void OnHudPresentationChanged() => Dispatcher.Invoke(() =>
     {
         UpdateClosedContentVisibility();

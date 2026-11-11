@@ -1,168 +1,95 @@
-using System.Diagnostics;
-using System.IO;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Threading;
-using WinNotch.Models;
 using WinNotch.Plugins;
+using WinNotch.Views;
 
 namespace PersonalCards.BatteryManager;
 
-[WinNotchPlugin("personal.card.batterymanager", "BatteryManager", "1.0.2", "Nacho_114")]
+[WinNotchPlugin("personal.card.batterymanager", "BatteryManager", "1.0.4", "Nacho_114")]
 public sealed class BatteryManagerPlugin : CardPluginBase
 {
     public override string Id => "personal.card.batterymanager";
     public override string Name => "BatteryManager";
-    public override string Version => "1.0.2";
+    public override string Version => "1.0.4";
     public override string Author => "Nacho_114";
     public override string Description => "Batería de periféricos Bluetooth y USB compatibles.";
     public override string CardKey => "batterymanager";
     public override string CardTitle => "Baterías";
     public override int CardOrder => 66;
     public override double CardHeight => 205;
-    private BatteryCard? _card;
+    private BatteryMonitor? _monitor;
 
-    protected override UIElement CreateCard() =>
-        _card = new BatteryCard(Context?.NotchViewModel.NotchState == NotchState.Open);
+    protected override UIElement CreateCard() => new BatteryCard(GetMonitor());
 
-    public override void OnNotchStateChanged(NotchState state) =>
-        _card?.SetNotchOpen(state == NotchState.Open);
+    public override async Task OnEnableAsync()
+    {
+        await base.OnEnableAsync();
+        await Application.Current.Dispatcher.InvokeAsync(() => GetMonitor().Start());
+    }
+
+    public override Task OnDisableAsync()
+    {
+        Application.Current.Dispatcher.Invoke(() => _monitor?.Stop());
+        return base.OnDisableAsync();
+    }
+
+    public override Task ShutdownAsync()
+    {
+        Application.Current.Dispatcher.Invoke(() => _monitor?.Stop());
+        return base.ShutdownAsync();
+    }
+
+    private BatteryMonitor GetMonitor() => _monitor ??= new BatteryMonitor(device =>
+        Context?.MainWindow is NotchWindow window &&
+        window.TryShowDeviceBattery(device.Name, device.Level!.Value, device.Band == BatteryBand.Critical));
 }
 
-internal sealed record DeviceBattery(string Name, int? Level, bool Charging, bool Online, string Kind, bool Approximate);
+internal enum BatteryBand { Normal, Low, Critical }
+
+internal sealed record DeviceBattery(string Name, int? Level, bool Charging, bool Online, string Kind, bool Approximate, string? Key)
+{
+    public string Identity => string.IsNullOrEmpty(Key) ? $"{Kind}:{Name}" : Key;
+    public BatteryBand Band => Level switch
+    {
+        >= 0 and <= 15 => BatteryBand.Critical,
+        > 15 and <= 30 => BatteryBand.Low,
+        _ => BatteryBand.Normal
+    };
+}
 internal sealed record BatterySnapshot(DeviceBattery[] Devices, int Failures);
 
 internal sealed class BatteryCard : StackPanel
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly WrapPanel _devices = new();
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, FontSize = 11 };
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMinutes(1) };
-    private CancellationTokenSource? _scan;
-    private DateTime _lastScanUtc;
 
-    private bool _notchOpen;
-    private bool CanScan => _notchOpen && IsLoaded && IsVisible;
-
-    public BatteryCard(bool notchOpen)
+    public BatteryCard(BatteryMonitor monitor)
     {
-        _notchOpen = notchOpen;
-        var refresh = new Button { Content = "Actualizar", HorizontalAlignment = HorizontalAlignment.Right };
-        refresh.Click += async (_, _) => await RefreshAsync(force: true);
         _status.SetResourceReference(TextBlock.ForegroundProperty, "TextMutedBrush");
-        refresh.VerticalAlignment = VerticalAlignment.Top;
-        refresh.Margin = new Thickness(4, 2, 0, 0);
-        var content = new DockPanel();
-        DockPanel.SetDock(refresh, Dock.Right);
-        content.Children.Add(refresh);
-        content.Children.Add(new ScrollViewer { Content = _devices, MaxHeight = 155, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
-        Children.Add(content);
+        Children.Add(new ScrollViewer { Content = _devices, MaxHeight = 155, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
         Children.Add(_status);
-        _timer.Tick += async (_, _) => await RefreshAsync();
-        Loaded += async (_, _) => await StartAsync();
-        IsVisibleChanged += async (_, _) =>
+        Loaded += (_, _) =>
         {
-            if (IsVisible) await StartAsync();
-            else Stop();
+            monitor.Changed += Show;
+            Show();
         };
-        Unloaded += (_, _) => Stop();
-    }
+        Unloaded += (_, _) => monitor.Changed -= Show;
 
-    public async void SetNotchOpen(bool open)
-    {
-        _notchOpen = open;
-        if (open) await StartAsync();
-        else Stop();
-    }
-
-    private async Task StartAsync()
-    {
-        if (!CanScan) return;
-        _timer.Start();
-        await RefreshAsync();
-    }
-
-    private void Stop()
-    {
-        _timer.Stop();
-        _scan?.Cancel();
-    }
-
-    private async Task RefreshAsync(bool force = false)
-    {
-        if (!CanScan || _scan != null || (!force && DateTime.UtcNow - _lastScanUtc < _timer.Interval))
-            return;
-
-        string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WinNotch", "BatteryManager");
-        string reader = Path.Combine(folder, "Reader", "BatteryReader.exe");
-        if (!File.Exists(reader))
+        void Show()
         {
-            _status.Text = "Falta el lector de BatteryManager en la carpeta Reader.";
-            return;
-        }
-
-        using var scan = new CancellationTokenSource();
-        _scan = scan;
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(scan.Token);
-        timeout.CancelAfter(TimeSpan.FromSeconds(45));
-        using var process = new Process
-        {
-            StartInfo = new ProcessStartInfo(reader)
+            _status.Text = monitor.Status;
+            if (ReferenceEquals(_devices.Tag, monitor.Snapshot)) return;
+            _devices.Tag = monitor.Snapshot;
+            _devices.Children.Clear();
+            if (monitor.Snapshot is { } snapshot)
             {
-                UseShellExecute = false, CreateNoWindow = true,
-                RedirectStandardOutput = true, RedirectStandardError = true,
-                WorkingDirectory = Path.GetDirectoryName(reader)!
-            }
-        };
-
-        try
-        {
-            _status.Text = "Buscando dispositivos…";
-            process.Start();
-            try
-            {
-                var output = process.StandardOutput.ReadToEndAsync(timeout.Token);
-                var errors = process.StandardError.ReadToEndAsync(timeout.Token);
-                await Task.WhenAll(output, errors, process.WaitForExitAsync(timeout.Token));
-                if (process.ExitCode != 0) throw new IOException("El lector no terminó correctamente.");
-                var snapshot = JsonSerializer.Deserialize<BatterySnapshot>(await output, JsonOptions)
-                    ?? throw new JsonException("Respuesta vacía.");
-                timeout.Token.ThrowIfCancellationRequested();
-                Show(snapshot);
-                _lastScanUtc = DateTime.UtcNow;
-            }
-            finally
-            {
-                if (!process.HasExited)
-                {
-                    try { process.Kill(entireProcessTree: true); }
-                    catch (InvalidOperationException) { }
-                }
+                foreach (var device in snapshot.Devices.OrderByDescending(item => item.Online).ThenBy(item => item.Name))
+                    _devices.Children.Add(CreateTile(device));
             }
         }
-        catch (OperationCanceledException)
-        {
-            if (!scan.IsCancellationRequested) _status.Text = "La lectura tardó demasiado.";
-            else _status.Text = "";
-        }
-        catch (Exception error) when (error is IOException or JsonException or System.ComponentModel.Win32Exception)
-        {
-            _status.Text = "No se pudieron leer las baterías.";
-        }
-        finally { _scan = null; }
     }
 
-    private void Show(BatterySnapshot snapshot)
-    {
-        _devices.Children.Clear();
-        foreach (var device in snapshot.Devices.OrderByDescending(item => item.Online).ThenBy(item => item.Name))
-            _devices.Children.Add(CreateTile(device));
-
-        _status.Text = snapshot.Failures > 0 ? "Algunos lectores no respondieron."
-            : snapshot.Devices.Length == 0 ? "No se detectaron dispositivos compatibles." : "";
-    }
 
     private static FrameworkElement CreateTile(DeviceBattery device)
     {
@@ -224,8 +151,8 @@ internal sealed class BatteryRing(DeviceBattery device) : FrameworkElement
         if (device.Level is not int level || level <= 0 || level > 100) return;
 
         Brush color = device.Charging ? Brushes.MediumSeaGreen
-            : level <= 15 ? Brushes.IndianRed
-            : level <= 30 ? Brushes.Goldenrod
+            : device.Band == BatteryBand.Critical ? Brushes.IndianRed
+            : device.Band == BatteryBand.Low ? Brushes.Goldenrod
             : TryFindResource("AccentBrush") as Brush ?? Brushes.LightGray;
         DrawArc(context, color, ArcLength * level / 100);
     }
