@@ -14,9 +14,9 @@
 
     <!-- App metadata -->
     <ApplicationIcon>Assets\Icons\WinNotch.ico</ApplicationIcon>
-    <Version>0.6.2</Version>
-    <FileVersion>0.6.2.0</FileVersion>
-    <AssemblyVersion>0.6.2.0</AssemblyVersion>
+    <Version>0.7.2</Version>
+    <FileVersion>0.7.2.0</FileVersion>
+    <AssemblyVersion>0.7.2.0</AssemblyVersion>
     <Product>WinNotch</Product>
     <Description>Dynamic Island-inspired notch overlay for Windows</Description>
     <Company>N3uralCreativity</Company>
