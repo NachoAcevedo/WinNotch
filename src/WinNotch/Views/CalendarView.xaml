@@ -19,7 +19,7 @@
             <StackPanel Orientation="Horizontal">
                 <TextBlock x:Name="DayNumberText"
                            Text="17"
-                           Foreground="{DynamicResource AccentBrush}"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
                            FontSize="26"
                            FontWeight="Bold"
                            VerticalAlignment="Bottom"/>
@@ -39,10 +39,9 @@
             <StackPanel x:Name="EventsPanel">
                 <!-- "No events" placeholder -->
                 <TextBlock x:Name="NoEventsText"
-                           Text="No upcoming events"
+                           Text="No hay eventos próximos"
                            Foreground="{DynamicResource TextFaintBrush}"
                            FontSize="12"
-                           FontStyle="Italic"
                            Margin="0,4,0,0"/>
             </StackPanel>
         </ScrollViewer>

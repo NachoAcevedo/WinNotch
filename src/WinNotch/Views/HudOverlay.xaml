@@ -41,7 +41,7 @@
         <TextBlock x:Name="HudPercent"
                    Grid.Column="2"
                    Text="50%"
-                   Foreground="{DynamicResource TextTertiaryBrush}"
+                   Foreground="{DynamicResource TextSecondaryBrush}"
                    FontSize="10"
                    VerticalAlignment="Center"
                    Margin="8,0,0,0"
@@ -50,7 +50,7 @@
     </Grid>
     <Grid x:Name="FeedbackContent" Visibility="Collapsed" VerticalAlignment="Center" Margin="6,0">
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-        <Border Width="28" Height="28" CornerRadius="14" Background="{DynamicResource AccentSoftBrush}" Margin="0,0,10,0" VerticalAlignment="Center">
+        <Border Width="28" Height="28" CornerRadius="{StaticResource InterfaceControlRadius}" Background="{DynamicResource AccentSoftBrush}" Margin="0,0,10,0" VerticalAlignment="Center">
             <TextBlock x:Name="FeedbackIcon" FontFamily="Segoe Fluent Icons" FontSize="17" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
         </Border>
         <StackPanel Grid.Column="1" VerticalAlignment="Center">

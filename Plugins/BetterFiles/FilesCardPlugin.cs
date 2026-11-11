@@ -13,5 +13,5 @@ public sealed class FilesCardPlugin : CardPluginBase
  public override int CardOrder => 60;
  public override double CardHeight => 190;
  protected override UIElement CreateCard() => CreateShelf();
- private UIElement CreateShelf() { var shelf = new ShelfView { Height = 140 }; shelf.Bind(Context!.ShelfService); return shelf; }
+ private UIElement CreateShelf() { var shelf = new ShelfView(); shelf.Bind(Context!.ShelfService); return shelf; }
 }

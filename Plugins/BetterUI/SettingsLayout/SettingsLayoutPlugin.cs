@@ -46,7 +46,7 @@ public sealed class SettingsLayoutPlugin : PluginBase
             // WinNotch trae la sección SYSTEM HUD (volumen, brillo) seguida de las tarjetas sin
             // título propio: Caps Lock pasa debajo de brillo y las tarjetas van en su sección.
             bool capsLock = SettingsDom.MoveAfter(view, "CapsLockFeedbackCheck", "BrightnessHudCheck");
-            bool cards = SettingsDom.InsertHeaderBefore(view, "ShowWeatherCheck", "TARJETAS", "personal.cards.header");
+            bool cards = SettingsDom.InsertHeaderBefore(view, "ShowWeatherCheck", "Tarjetas", "personal.cards.header");
 
             Context?.Log($"Ajustes reordenados: notch mínimo={minimum}, caps lock={capsLock}, sección tarjetas={cards}");
         }

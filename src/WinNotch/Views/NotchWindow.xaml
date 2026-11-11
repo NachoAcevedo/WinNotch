@@ -26,10 +26,19 @@
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="TabItem">
-                            <Border x:Name="TabBackground" CornerRadius="13" Margin="0,0,2,0" Padding="{TemplateBinding Padding}" Background="Transparent">
+                            <Border x:Name="TabBackground" CornerRadius="{StaticResource InterfaceControlRadius}" Margin="0,0,2,0" Padding="{TemplateBinding Padding}" Background="Transparent" BorderThickness="1" BorderBrush="Transparent">
                                 <ContentPresenter ContentSource="Header"/>
                             </Border>
                             <ControlTemplate.Triggers>
+                                <Trigger Property="Header" Value="{x:Null}">
+                                    <Setter TargetName="TabBackground" Property="Visibility" Value="Collapsed"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="TabBackground" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                    <Setter TargetName="TabBackground" Property="BorderBrush" Value="{DynamicResource FocusRingBrush}"/>
+                                </Trigger>
                                 <Trigger Property="IsSelected" Value="True">
                                     <Setter TargetName="TabBackground" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
                                     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
@@ -163,15 +172,24 @@
                                     Foreground="{DynamicResource TextPrimaryBrush}" SelectionChanged="OnCardSelectionChanged">
                             <TabControl.Template>
                                 <ControlTemplate TargetType="TabControl">
-                                    <DockPanel LastChildFill="True">
-                                        <Border DockPanel.Dock="Top" CornerRadius="16" Background="{DynamicResource SurfaceBrush}" Padding="3" Margin="0,0,0,6"><TabPanel IsItemsHost="True"/></Border>
-                                        <Border x:Name="CardBody" CornerRadius="18" Background="{DynamicResource SurfaceBrush}" Padding="8,6" ClipToBounds="True">
-                                            <ContentPresenter ContentSource="SelectedContent"/>
-                                        </Border>
-                                    </DockPanel>
+                                    <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="{StaticResource InterfacePanelRadius}" Padding="4">
+                                        <DockPanel LastChildFill="True">
+                                            <Border x:Name="CardHeader" DockPanel.Dock="Top" Padding="0,0,0,2">
+                                                <TabPanel IsItemsHost="True"/>
+                                            </Border>
+                                            <Border x:Name="CardBody" Background="Transparent" Padding="3,2,3,3" ClipToBounds="True">
+                                                <ContentPresenter ContentSource="SelectedContent"/>
+                                            </Border>
+                                        </DockPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="Tag" Value="ShelfDrop">
+                                            <Setter TargetName="CardHeader" Property="Visibility" Value="Collapsed"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
                                 </ControlTemplate>
                             </TabControl.Template>
-                            <TabItem x:Name="MusicCardTab" Header="Música" Style="{StaticResource CardTab}">
+                            <TabItem x:Name="MusicCardTab" Header="Media" Style="{StaticResource CardTab}">
                                 <views:MusicPlayerView x:Name="MusicPlayer"/>
                             </TabItem>
                             <TabItem x:Name="CalendarCardTab" Header="Calendario" Style="{StaticResource CardTab}">

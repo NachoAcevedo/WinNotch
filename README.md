@@ -52,7 +52,7 @@ dotnet publish src/WinNotch/WinNotch.csproj -c Release -r win-x64 --self-contain
 
 | Folder | Features |
 | --- | --- |
-| [BetterUI](Plugins/BetterUI) | Adaptive notch width, settings layout and native flyout hiding. Each is a separate plugin project. |
+| [BetterUI](Plugins/BetterUI) | Shared card controls, adaptive notch width, settings layout and native flyout hiding. |
 | [NectarTheme](Plugins/NectarTheme) | Nectar colors, typography and styles. |
 | [BetterMedia](Plugins/BetterMedia) | Media tab and playback notifications with album art, title and artist. |
 | [BetterCalendar](Plugins/BetterCalendar) | Calendar events from all classic Outlook accounts. |
@@ -60,6 +60,7 @@ dotnet publish src/WinNotch/WinNotch.csproj -c Release -r win-x64 --self-contain
 | [BetterWeather](Plugins/BetterWeather) | Weather and forecast card. |
 | [BetterFiles](Plugins/BetterFiles) | Files card. |
 | [BetterAI](Plugins/BetterAI) | AI card backed by AgentBridge. |
+| [BatteryManager](Plugins/BatteryManager) | Peripheral battery levels using Halo Battery hardware readers. |
 | [earTrumpet](Plugins/earTrumpet) | Windows playback outputs and per-app volume, mute and routing. |
 
 To compile a plugin on another PC, build its project from the repository root. For example:

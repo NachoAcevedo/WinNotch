@@ -65,7 +65,7 @@ public partial class NotchWindow : Window
     private double ClosedHeight => _settings.AlwaysShowMinimum ? 12 : NotchConstants.ClosedHeight;
     private readonly Dictionary<string, TabItem> _pluginCardTabs = new();
     private ShelfView? _shelfCardView;
-    private bool CardIsVisible(string key) => _pluginCardTabs.TryGetValue(key, out var tab) && tab.Visibility == Visibility.Visible;
+    private bool CanReceiveShelfDrop => _dock == NotchDock.Top && IsCardEnabled("files") && _shelfCardView != null;
     private bool CardIsSelected(string key) => _pluginCardTabs.TryGetValue(key, out var tab) && CardTabs.SelectedItem == tab;
     private bool IsCardEnabled(string key) => key switch
     {
@@ -75,6 +75,8 @@ public partial class NotchWindow : Window
         "files" => _settings.ShowFiles,
         _ => true
     };
+    private bool ShouldShowCard(string key) => IsCardEnabled(key) &&
+        (key != "files" || _shelfService.HasItems || _incomingFileDrag);
     private bool _shelfDragInProgress;
     public bool ShelfDragInProgress => _shelfDragInProgress;
     public void SetShelfDragInProgress(bool active)
@@ -517,9 +519,10 @@ public partial class NotchWindow : Window
                     {
                         var tab = new TabItem
                         {
-                            Header = cardPlugin.CardTitle, Content = view, Tag = cardPlugin,
+                            Header = cardPlugin.CardKey == "files" ? ShelfCardHeader : cardPlugin.CardTitle,
+                            Content = view, Tag = cardPlugin,
                             Style = (Style)FindResource("CardTab"),
-                            Visibility = IsCardEnabled(cardPlugin.CardKey) ? Visibility.Visible : Visibility.Collapsed
+                            Visibility = ShouldShowCard(cardPlugin.CardKey) ? Visibility.Visible : Visibility.Collapsed
                         };
                         _pluginCardTabs[cardPlugin.CardKey] = tab;
                         if (cardPlugin.CardKey == "files") _shelfCardView = view as ShelfView;
@@ -535,7 +538,7 @@ public partial class NotchWindow : Window
                         VerticalPluginClosedPanel.Children.Add(closedElement);
                 }
 
-                if (_dock == NotchDock.Top)
+               if (_dock == NotchDock.Top)
                 {
                     var accessoryElement = uiPlugin.GetUIElement(UIPluginLocation.OpenAccessory);
                     if (accessoryElement != null)
@@ -544,7 +547,7 @@ public partial class NotchWindow : Window
                         PluginAccessoryPanel.Visibility = Visibility.Visible;
                     }
 
-                    var openElement = uiPlugin.GetUIElement(UIPluginLocation.OpenContent);
+                   var openElement = uiPlugin.GetUIElement(UIPluginLocation.OpenContent);
                     if (openElement != null)
                         PluginOpenPanel.Children.Add(openElement);
                 }
@@ -556,7 +559,7 @@ public partial class NotchWindow : Window
                         VerticalPluginOpenPanel.Children.Add(verticalOpenElement);
                 }
 
-                // Notify initial state
+               // Notify initial state
                 uiPlugin.OnNotchStateChanged(_vm.NotchState);
             }
             catch (Exception ex)
@@ -917,7 +920,7 @@ public partial class NotchWindow : Window
         double width = Math.Max(120, GetOpenWidth() - 84);
         MainOpenContent.Measure(new Size(width, double.PositiveInfinity));
         double height = Math.Ceiling(MainOpenContent.DesiredSize.Height);
-        if (PluginOpenPanel.Children.Count > 0)
+        if (!_incomingFileDrag && PluginOpenPanel.Children.Count > 0)
             height += GetMeasuredPanelHeight(PluginOpenPanel, width);
         // Only the shape's vertical insets (30) and outer content margins (16).
         return height + 46;
@@ -1875,7 +1878,7 @@ public partial class NotchWindow : Window
         MusicCardTab.Visibility = settings.ShowMusicControls ? Visibility.Visible : Visibility.Collapsed;
         CalendarCardTab.Visibility = settings.ShowCalendar ? Visibility.Visible : Visibility.Collapsed;
         foreach (var entry in _pluginCardTabs)
-            entry.Value.Visibility = IsCardEnabled(entry.Key) ? Visibility.Visible : Visibility.Collapsed;
+            entry.Value.Visibility = ShouldShowCard(entry.Key) ? Visibility.Visible : Visibility.Collapsed;
         EnsureVisibleCardSelected();
         CompactVisualizer_SetVisible(settings.ShowVisualizer);
         UpdateClosedContentVisibility();
@@ -1977,7 +1980,7 @@ public partial class NotchWindow : Window
                 _dpiCached = true;
             }
 
-            GlassSpecularPath.Opacity = 1.0;
+           GlassSpecularPath.Opacity = 1.0;
             GlassBorderPath.Opacity = 1.0;
             GlassInnerShadowPath.Opacity = 1.0;
             BackdropBlurPath.Opacity = 1.0;
@@ -2043,7 +2046,7 @@ public partial class NotchWindow : Window
                 BackdropBlurPath.Fill = _backdropBrush;
             }
 
-            // Capture directly into the WriteableBitmap (zero alloc)
+           // Capture directly into the WriteableBitmap (zero alloc)
             // Padding feeds the edge-lens: rim pixels sample from this outside band
             BackdropBlurHelper.CaptureInto(_backdropWb, px, py, pw, ph, padding: 8);
         }
@@ -2062,11 +2065,16 @@ public partial class NotchWindow : Window
 
     #region File Shelf / Drag-Drop
 
+    private string? ShelfCardHeader => _shelfService.HasItems ? $"Archivos ({_shelfService.Items.Count})" : null;
+
     private void UpdateShelfVisibility()
     {
-        bool hasItems = _shelfService.HasItems;
         if (_pluginCardTabs.TryGetValue("files", out var filesTab))
-            filesTab.Header = hasItems ? $"Archivos ({_shelfService.Items.Count})" : "Archivos";
+        {
+            filesTab.Header = ShelfCardHeader;
+            filesTab.Visibility = ShouldShowCard("files") ? Visibility.Visible : Visibility.Collapsed;
+            EnsureVisibleCardSelected();
+        }
 
         // Adjust open height if notch is open
         if (_vm.NotchState == NotchState.Open && !_isSettingsExpanded)
@@ -2076,38 +2084,49 @@ public partial class NotchWindow : Window
         }
     }
 
+    private void SetIncomingFileDrag(bool active)
+    {
+        _incomingFileDrag = active;
+        CardTabs.Tag = active ? "ShelfDrop" : null;
+        SettingsGearButton.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
+        PluginOpenPanel.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
+        if (active)
+            _shelfCardView?.ShowDropZone();
+        else
+            _shelfCardView?.HideDropZone();
+    }
+
     private void OnDragEnter(object sender, DragEventArgs e)
     {
         // The file shelf lives in the horizontal (top dock) layout only
-        if (_dock != NotchDock.Top || !CardIsVisible("files") || _shelfCardView == null || _shelfDragInProgress) return;
+        if (!CanReceiveShelfDrop || _shelfDragInProgress) return;
 
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
             e.Effects = DragDropEffects.Copy;
-            _incomingFileDrag = true;
+            e.Handled = true;
+            if (_incomingFileDrag) return;
+            SetIncomingFileDrag(true);
             _hoverCloseTimer?.Stop();
-            CardTabs.SelectedItem = _pluginCardTabs["files"];
+            var filesTab = _pluginCardTabs["files"];
+            filesTab.Visibility = Visibility.Visible;
+            CardTabs.SelectedItem = filesTab;
 
             // Open the notch if closed/peeking to show drop zone
             if (_vm.NotchState != NotchState.Open)
                 TransitionToOpen();
 
-            // Show drop zone and expand for shelf
-            _shelfCardView.ShowDropZone();
-
             if (!_isSettingsExpanded)
             {
                 _heightSpring.AnimateTo(GetTopOpenHeight(), _currentHeight);
             }
-
-            e.Handled = true;
         }
     }
 
     private void OnDragOver(object sender, DragEventArgs e)
     {
         if (_shelfDragInProgress) { e.Effects = DragDropEffects.None; e.Handled = true; return; }
-        if (_dock != NotchDock.Top || !CardIsVisible("files")) return;
+        if (!CanReceiveShelfDrop) return;
 
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
@@ -2118,38 +2137,28 @@ public partial class NotchWindow : Window
 
     private void OnDragLeave(object sender, DragEventArgs e)
     {
+        if (!_incomingFileDrag) return;
         var position = e.GetPosition(ContentGrid);
         if (position.X >= 0 && position.Y >= 0 && position.X <= ContentGrid.ActualWidth && position.Y <= ContentGrid.ActualHeight) return;
-        _incomingFileDrag = false;
-        _shelfCardView?.HideDropZone();
-
-        // If no items, collapse shelf and shrink back
-        if (!_shelfService.HasItems)
-        {
-            if (_vm.NotchState == NotchState.Open && !_isSettingsExpanded)
-            {
-                _heightSpring.AnimateTo(GetTopOpenHeight(), _currentHeight);
-            }
-        }
+        SetIncomingFileDrag(false);
+        UpdateShelfVisibility();
     }
 
     private void OnDrop(object sender, DragEventArgs e)
     {
         if (_shelfDragInProgress) { e.Effects = DragDropEffects.None; e.Handled = true; return; }
-        if (_dock != NotchDock.Top || !CardIsVisible("files")) return;
-        _incomingFileDrag = false;
+        if (!CanReceiveShelfDrop) return;
+        SetIncomingFileDrag(false);
 
-        _shelfCardView?.HideDropZone();
-
-        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        if (e.Data.GetDataPresent(DataFormats.FileDrop) && e.Data.GetData(DataFormats.FileDrop) is string[] { Length: > 0 } files)
         {
-            var files = e.Data.GetData(DataFormats.FileDrop) as string[];
-            if (files != null && files.Length > 0)
-            {
-                _shelfService.AddFiles(files);
-            }
+            _shelfService.AddFiles(files);
             e.Effects = DragDropEffects.Copy;
             e.Handled = true;
+        }
+        else
+        {
+            UpdateShelfVisibility();
         }
     }
 

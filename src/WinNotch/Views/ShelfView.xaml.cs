@@ -41,16 +41,16 @@ public partial class ShelfView : UserControl
         if (_service == null) return;
 
         bool hasItems = _service.HasItems;
-        ShelfItemsControl.Visibility = hasItems ? Visibility.Visible : Visibility.Collapsed;
-        ClearAllButton.Visibility = hasItems ? Visibility.Visible : Visibility.Collapsed;
-        ItemCountText.Text = hasItems ? $"{_service.Items.Count} archivo(s)" : "";
-        EmptyState.Visibility = hasItems ? Visibility.Collapsed : Visibility.Visible;
+        bool dragging = DropZoneOverlay.Visibility == Visibility.Visible;
+        ShelfHeader.Visibility = hasItems && !dragging ? Visibility.Visible : Visibility.Collapsed;
+        ShelfScroller.Visibility = hasItems && !dragging ? Visibility.Visible : Visibility.Collapsed;
+        EmptyState.Visibility = hasItems || dragging ? Visibility.Collapsed : Visibility.Visible;
     }
 
     public void ShowDropZone()
     {
         DropZoneOverlay.Visibility = Visibility.Visible;
-        EmptyState.Visibility = Visibility.Collapsed;
+        UpdateVisibility();
     }
 
     public void HideDropZone()

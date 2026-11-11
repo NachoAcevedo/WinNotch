@@ -9,12 +9,12 @@ using WinNotch.Plugins;
 
 namespace PersonalCards.Audio;
 
-[WinNotchPlugin("personal.card.eartrumpet", "earTrumpet", "1.0.2", "Nacho_114")]
+[WinNotchPlugin("personal.card.eartrumpet", "earTrumpet", "1.0.3", "Nacho_114")]
 public sealed class EarTrumpetPlugin : CardPluginBase
 {
     public override string Id => "personal.card.eartrumpet";
     public override string Name => "earTrumpet";
-    public override string Version => "1.0.2";
+    public override string Version => "1.0.3";
     public override string Author => "Nacho_114";
     public override string Description => "Control de volumen general, volumen por aplicación y salidas de audio.";
     public override string CardKey => "eartrumpet";
@@ -133,7 +133,7 @@ internal sealed class AudioMixer : StackPanel
     private UIElement AppRow(uint processId, AudioSessionControl[] sessions, Output[] routes)
     {
         var row = new StackPanel { Margin = new Thickness(0, 6, 0, 2) };
-        var label = new TextBlock { Text = ProcessName(processId), TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+        var label = new TextBlock { Text = ProcessName(processId), FontSize = 12, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
         label.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
 
         var route = new Button { Content = "Salida…", Margin = new Thickness(8, 0, 0, 0) };
@@ -165,7 +165,9 @@ internal sealed class AudioMixer : StackPanel
             value => Array.ForEach(sessions, session => session.SimpleAudioVolume.Volume = value),
             mute => Array.ForEach(sessions, session => session.SimpleAudioVolume.Mute = mute)));
         row.Children.Add(choices);
-        return row;
+        var divider = new Border { BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(0, 0, 0, 6), Child = row };
+        divider.SetResourceReference(Border.BorderBrushProperty, "BorderBrush");
+        return divider;
     }
 
     private void ToggleRoutes(StackPanel choices)
@@ -184,10 +186,10 @@ internal sealed class AudioMixer : StackPanel
     {
         var label = new TextBlock
         {
-            Text = text, FontSize = 11, FontWeight = FontWeights.SemiBold,
+            Text = text, Visibility = Visibility.Hidden, FontSize = 11, FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, top, 0, 2)
         };
-        label.SetResourceReference(TextBlock.ForegroundProperty, "TextMutedBrush");
+        label.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
         return label;
     }
 

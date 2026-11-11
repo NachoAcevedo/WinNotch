@@ -63,11 +63,10 @@ public partial class MusicPlayerView : UserControl
         if (propertyName == null || propertyName == nameof(info.AlbumArt))
         {
             AlbumArtImage.Source = info.AlbumArt;
-            GlowBrush.ImageSource = info.AlbumArt;
         }
 
         if (propertyName == null || propertyName == nameof(info.IsPlaying))
-            PlayPauseIcon.Text = info.IsPlaying ? "\uE769" : "\uE768";
+            PlayPauseIcon.Data = (Geometry)FindResource(info.IsPlaying ? "TransportPause" : "TransportPlay");
 
         if (propertyName == null || propertyName == nameof(info.Position) || propertyName == nameof(info.ProgressPercent))
         {
@@ -79,12 +78,12 @@ public partial class MusicPlayerView : UserControl
             DurationText.Text = FormatTime(info.Duration);
 
         if (propertyName == null || propertyName == nameof(info.IsShuffle))
-            ShuffleButton.Opacity = info.IsShuffle ? 1.0 : 0.4;
+            System.Windows.Controls.Primitives.Selector.SetIsSelected(ShuffleButton, info.IsShuffle);
 
         if (propertyName == null || propertyName == nameof(info.RepeatMode))
         {
-            RepeatIcon.Text = info.RepeatMode == 2 ? "\uE8ED" : "\uE8EE";
-            RepeatButton.Opacity = info.RepeatMode > 0 ? 1.0 : 0.4;
+            RepeatIcon.Data = (Geometry)FindResource(info.RepeatMode == 2 ? "TransportRepeatOne" : "TransportRepeat");
+            System.Windows.Controls.Primitives.Selector.SetIsSelected(RepeatButton, info.RepeatMode > 0);
         }
 
         if (propertyName == null || propertyName == nameof(info.DominantColor))

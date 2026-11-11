@@ -31,7 +31,7 @@
         <Border Margin="18"
                 Padding="24"
                 Background="{DynamicResource NotchFillBrush}"
-                CornerRadius="30"
+                CornerRadius="{StaticResource InterfacePanelRadius}"
                 Effect="{StaticResource PluginWindowShadow}">
             <Grid>
                 <Grid.RowDefinitions>
@@ -47,14 +47,10 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel>
-                        <TextBlock Text="Browse Plugins"
-                                   FontSize="28"
+                        <TextBlock Text="Explorar plugins"
+                                   FontSize="22"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock Text="Discover verified widgets and utilities that fit directly into WinNotch."
-                                   Margin="0,6,0,0"
-                                   FontSize="12"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
 
                     <Button x:Name="CloseButton"
@@ -94,7 +90,7 @@
 
                 <Border Grid.Row="2"
                         Background="{DynamicResource SegmentedBgBrush}"
-                        CornerRadius="26"
+                        CornerRadius="{StaticResource InterfacePanelRadius}"
                         Padding="18,18,10,18">
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled"

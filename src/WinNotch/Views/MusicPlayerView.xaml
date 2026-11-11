@@ -9,6 +9,20 @@
                 <ResourceDictionary Source="Components/MarqueeTextStyle.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
+            <Geometry x:Key="TransportPlay">M 5,3 L 13,8 L 5,13 Z</Geometry>
+            <Geometry x:Key="TransportPause">M 5,4 L 5,12 M 11,4 L 11,12</Geometry>
+            <Geometry x:Key="TransportRepeat">M 3,7 A 2,2 0 0 1 5,5 H 13 M 11,3 L 13,5 L 11,7 M 13,9 A 2,2 0 0 1 11,11 H 3 M 5,9 L 3,11 L 5,13</Geometry>
+            <Geometry x:Key="TransportRepeatOne">M 3,7 A 2,2 0 0 1 5,5 H 13 M 11,3 L 13,5 L 11,7 M 13,9 A 2,2 0 0 1 11,11 H 3 M 5,9 L 3,11 L 5,13 M 7,8 L 8,7 L 8,9</Geometry>
+            <Style x:Key="TransportIcon" TargetType="Path">
+                <Setter Property="Width" Value="16"/>
+                <Setter Property="Height" Value="16"/>
+                <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                <Setter Property="StrokeThickness" Value="1.6"/>
+                <Setter Property="StrokeStartLineCap" Value="Round"/>
+                <Setter Property="StrokeEndLineCap" Value="Round"/>
+                <Setter Property="StrokeLineJoin" Value="Round"/>
+            </Style>
+
             <Style x:Key="TransportButton" TargetType="Button">
                 <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}"/>
                 <Setter Property="BorderThickness" Value="0"/>
@@ -21,7 +35,8 @@
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
                             <Border x:Name="Bg" Background="{TemplateBinding Background}"
-                                    CornerRadius="15"
+                                    BorderBrush="Transparent" BorderThickness="1"
+                                    CornerRadius="{StaticResource InterfaceControlRadius}"
                                     Padding="{TemplateBinding Padding}">
                                 <ContentPresenter HorizontalAlignment="Center"
                                                   VerticalAlignment="Center"/>
@@ -30,8 +45,16 @@
                                 <Trigger Property="IsMouseOver" Value="True">
                                     <Setter TargetName="Bg" Property="Background" Value="{DynamicResource TransportHoverBrush}"/>
                                 </Trigger>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter TargetName="Bg" Property="BorderBrush" Value="{DynamicResource FocusRingBrush}"/>
+                                </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="Bg" Property="Background" Value="{DynamicResource TransportPressedBrush}"/>
+                                    <Setter TargetName="Bg" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+                                </Trigger>
+                                <Trigger Property="Selector.IsSelected" Value="True">
+                                    <Setter TargetName="Bg" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -47,30 +70,16 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Album art with glow -->
+        <!-- Album art -->
         <Grid x:Name="AlbumArtGrid" Grid.Column="0" Margin="0,0,12,0">
-            <!-- Background glow from album art -->
-            <Border x:Name="AlbumGlow"
-                    Width="90" Height="90"
-                    CornerRadius="14"
-                    Opacity="0.18">
-                <Border.Background>
-                    <ImageBrush x:Name="GlowBrush" Stretch="UniformToFill"/>
-                </Border.Background>
-                <Border.Effect>
-                    <BlurEffect Radius="24"/>
-                </Border.Effect>
-            </Border>
-
-            <!-- Album art -->
             <Border Width="90" Height="90"
-                    CornerRadius="18"
+                    CornerRadius="{StaticResource InterfacePanelRadius}"
                     ClipToBounds="True">
                 <Image x:Name="AlbumArtImage"
                        Stretch="UniformToFill"
                        RenderOptions.BitmapScalingMode="HighQuality">
                     <Image.Clip>
-                        <RectangleGeometry Rect="0,0,90,90" RadiusX="18" RadiusY="18"/>
+                        <RectangleGeometry Rect="0,0,90,90" RadiusX="12" RadiusY="12"/>
                     </Image.Clip>
                 </Image>
             </Border>
@@ -153,7 +162,7 @@
                         Style="{StaticResource TransportButton}"
                         Margin="0,0,8,0"
                         ToolTip="Shuffle">
-                    <TextBlock FontFamily="Segoe Fluent Icons" Text="&#xE8B1;" FontSize="13"/>
+                    <Path Style="{StaticResource TransportIcon}" Data="M 2,4 H 4 C 7,4 9,12 12,12 H 14 M 12,10 L 14,12 L 12,14 M 2,12 H 4 C 5,12 6,10 7,9 M 9,7 C 10,5 11,4 12,4 H 14 M 12,2 L 14,4 L 12,6"/>
                 </Button>
 
                 <!-- Previous -->
@@ -162,7 +171,7 @@
                         Style="{StaticResource TransportButton}"
                         Margin="0,0,6,0"
                         ToolTip="Previous">
-                    <TextBlock FontFamily="Segoe Fluent Icons" Text="&#xE892;" FontSize="16"/>
+                    <Path Style="{StaticResource TransportIcon}" Data="M 4,4 V 12 M 12,4 L 6,8 L 12,12 Z"/>
                 </Button>
 
                 <!-- Play/Pause -->
@@ -170,9 +179,9 @@
                         Click="OnPlayPauseClick"
                         Style="{StaticResource TransportButton}"
                         Width="32" Height="32"
-                        Background="{DynamicResource AccentSoftBrush}" Foreground="{DynamicResource AccentBrush}"
+                        Selector.IsSelected="True"
                         ToolTip="Play/Pause">
-                    <TextBlock x:Name="PlayPauseIcon" FontFamily="Segoe Fluent Icons" Text="&#xE768;" FontSize="16"/>
+                    <Path x:Name="PlayPauseIcon" Style="{StaticResource TransportIcon}" Data="{StaticResource TransportPlay}"/>
                 </Button>
 
                 <!-- Next -->
@@ -181,7 +190,7 @@
                         Style="{StaticResource TransportButton}"
                         Margin="6,0,0,0"
                         ToolTip="Next">
-                    <TextBlock FontFamily="Segoe Fluent Icons" Text="&#xE893;" FontSize="16"/>
+                    <Path Style="{StaticResource TransportIcon}" Data="M 12,4 V 12 M 4,4 L 10,8 L 4,12 Z"/>
                 </Button>
 
                 <!-- Repeat -->
@@ -190,7 +199,7 @@
                         Style="{StaticResource TransportButton}"
                         Margin="8,0,0,0"
                         ToolTip="Repeat">
-                    <TextBlock x:Name="RepeatIcon" FontFamily="Segoe Fluent Icons" Text="&#xE8EE;" FontSize="13"/>
+                    <Path x:Name="RepeatIcon" Style="{StaticResource TransportIcon}" Data="{StaticResource TransportRepeat}"/>
                 </Button>
             </StackPanel>
         </Grid>
@@ -198,7 +207,7 @@
         <!-- No media placeholder -->
         <TextBlock x:Name="NoMediaText"
                    Grid.ColumnSpan="2"
-                   Text="No music playing"
+                   Text="No hay reproducción"
                    Foreground="{DynamicResource TextFaintBrush}"
                    FontSize="14"
                    HorizontalAlignment="Center"
