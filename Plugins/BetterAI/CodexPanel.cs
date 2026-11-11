@@ -13,6 +13,7 @@ namespace PersonalCards;
 
 internal sealed class CodexPanel : StackPanel
 {
+    private const int MaxVisibleChats = 5;
     private readonly ICodexConnection _connection;
     private readonly bool _persistSettings;
     // Nombre del agente en los textos, modo de la tarjeta al que pertenece y archivo de preferencias.
@@ -23,7 +24,6 @@ internal sealed class CodexPanel : StackPanel
     private readonly int _chatLimit;
     private readonly ComboBox _chats = new() { MinWidth = 170, MaxWidth = 410, HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly MenuItem _refresh = new() { Header = "Actualizar chats" };
-    private readonly MenuItem _older = new() { Header = "Cargar más chats" };
     private readonly MenuItem _keep = new() { Header = "Mantener abierto al responder", IsCheckable = true };
     private readonly Button _options = new() { Content = "⋯", ToolTip = "Opciones de IA", FontSize = 21, Width = 30, Padding = new Thickness(0), Margin = new Thickness(6, 0, 0, 0), BorderThickness = new Thickness(0), Background = System.Windows.Media.Brushes.Transparent };
     private static readonly CodexChat NewChatChoice = new("", "+ Nuevo chat", null);
@@ -35,7 +35,7 @@ internal sealed class CodexPanel : StackPanel
     private readonly TextBox _conversation = new()
     {
         IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-        MaxHeight = 200, MinHeight = 30, FontSize = 12, BorderThickness = new Thickness(0), Background = System.Windows.Media.Brushes.Transparent, Margin = new Thickness(0, 10, 0, 2)
+        MaxHeight = 200, MinHeight = 24, FontSize = 12, BorderThickness = new Thickness(0), Background = System.Windows.Media.Brushes.Transparent, Margin = new Thickness(0, 4, 0, 1)
     };
     private readonly TextBox _input = new()
     {
@@ -48,7 +48,6 @@ internal sealed class CodexPanel : StackPanel
     private CodexPreferences _preferences;
     private CancellationTokenSource? _lifetime;
     private bool _reading, _sending, _loading, _busy;
-    private string? _historyCursor;
     private int _selectionVersion;
     private string? _previousConversation;
     private string? _pendingText;
@@ -76,7 +75,7 @@ internal sealed class CodexPanel : StackPanel
         _agent = agent;
         _mode = cardMode;
         _settingsFile = settingsFile;
-        _chatLimit = chatLimit;
+        _chatLimit = Math.Clamp(chatLimit, 1, MaxVisibleChats);
         _preferences = LocalCards.Read<CodexPreferences>(settingsFile) ?? new();
         _input.ToolTip = $"Escribí a {agent}. Enter envía; Shift+Enter agrega una línea.";
         _status.Text = $"Conectando con {agent}…";
@@ -90,7 +89,7 @@ internal sealed class CodexPanel : StackPanel
         options.SetResourceReference(Control.ForegroundProperty, "TextPrimaryBrush");
         options.Resources[typeof(MenuItem)] = OptionsItemStyle();
         _options.ContextMenu = options;
-        options.Items.Add(_keep); options.Items.Add(_refresh); 
+        options.Items.Add(_keep); options.Items.Add(_refresh);
         var settingsItem = new MenuItem { Header = "Configurar modos…" };
         settingsItem.Click += (_, _) => SettingsRequested?.Invoke();
         options.Items.Add(settingsItem);
@@ -119,11 +118,11 @@ internal sealed class CodexPanel : StackPanel
         field.Children.Add(placeholder);
         row.Children.Add(_attach);
         Grid.SetColumn(field, 1); row.Children.Add(field); Grid.SetColumn(_send, 2); row.Children.Add(_send);
-        var inputBorder = new Border { CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1), Child = row };
+        var inputBorder = new Border { CornerRadius = new CornerRadius(7), BorderThickness = new Thickness(1), Child = row };
         inputBorder.SetResourceReference(Border.BackgroundProperty, "SurfaceRaisedBrush");
         inputBorder.SetResourceReference(Border.BorderBrushProperty, "BorderBrush");
         row.Margin = new Thickness(0);
-        inputBorder.Margin = new Thickness(0, 8, 0, 0);
+        inputBorder.Margin = new Thickness(0, 4, 0, 0);
         Children.Add(inputBorder); Children.Add(_status);
         foreach (var control in new Control[] { _input, _conversation, _chats, _keep, _options })
             control.SetResourceReference(Control.ForegroundProperty, "TextPrimaryBrush");
@@ -139,9 +138,9 @@ internal sealed class CodexPanel : StackPanel
           """);
         _input.BorderThickness = new Thickness(0);
         _input.Padding = new Thickness(9, 8, 0, 8);
-        StylePicker(_chats);
-        _send.SetResourceReference(Control.ForegroundProperty, "AccentBrush");
-        _send.Style = FlatButtonStyle();
+        _send.SetResourceReference(Control.ForegroundProperty, "AccentTextBrush");
+        _send.SetResourceReference(Control.BackgroundProperty, "AccentBrush");
+        _send.Padding = new Thickness(0);
         _options.Style = FlatButtonStyle();
         _attach.Style = FlatButtonStyle();
         _attach.SetResourceReference(Control.ForegroundProperty, "TextMutedBrush");
@@ -155,7 +154,7 @@ internal sealed class CodexPanel : StackPanel
         statusStyle.Triggers.Add(emptyStatus); _status.Style = statusStyle;
         _keep.IsChecked = _preferences.KeepOpenWhileThinking;
         _keep.Click += (_, _) => { Save(); UpdateHold(); if (_busy && _keep.IsChecked != true) HideRequested?.Invoke(); };
-        _refresh.Click += async (_, _) => await LoadChatsAsync(false);
+        _refresh.Click += async (_, _) => await LoadChatsAsync();
         _chats.DropDownOpened += (_, _) => AgentComposer.NotifyActivity();
         _chats.DropDownClosed += (_, _) => AgentComposer.NotifyActivity();
         _chats.Items.Add(NewChatChoice);
@@ -202,7 +201,7 @@ internal sealed class CodexPanel : StackPanel
             if (!IsVisible) return;
             _lifetime ??= new CancellationTokenSource();
             _poll.Start();
-            if (_chats.Items.Count <= 1) await LoadChatsAsync(false);
+            if (_chats.Items.Count <= 1) await LoadChatsAsync();
             else await ReadAsync();
         };
         // Hiding the tab never cancels a send: it only reduces status polling to an idle timer.
@@ -214,7 +213,7 @@ internal sealed class CodexPanel : StackPanel
             {
                 _lifetime ??= new CancellationTokenSource();
                 _poll.Start();
-                if (_chats.Items.Count <= 1) await LoadChatsAsync(false);
+                if (_chats.Items.Count <= 1) await LoadChatsAsync();
                 else await ReadAsync();
             }
             else if (_pendingThread == null) _poll.Stop();
@@ -414,17 +413,17 @@ internal sealed class CodexPanel : StackPanel
         HoldOpen = hold; HoldChanged?.Invoke();
     }
 
-    private async Task LoadChatsAsync(bool more)
+    private async Task LoadChatsAsync()
     {
         if (_loading) return;
-        _loading = true; _refresh.IsEnabled = _older.IsEnabled = false;
+        _loading = true; _refresh.IsEnabled = false;
         try
         {
             string? selected = (_chats.SelectedItem as CodexChat)?.Id ?? _preferences.ChatId;
             var arguments = new Dictionary<string, object> { ["mode"] = "history", ["source"] = "codex", ["limit"] = _chatLimit };
-            if (more && _historyCursor != null) arguments["cursor"] = _historyCursor;
             var result = await _connection.CallAsync("list_threads", arguments, _lifetime?.Token ?? default);
-            if (!more) { _chats.Items.Clear(); _chats.Items.Add(NewChatChoice); }
+            _chats.Items.Clear();
+            _chats.Items.Add(NewChatChoice);
             foreach (var chat in result.GetProperty("threads").EnumerateArray())
             {
                 if (chat.TryGetProperty("kind", out var kind) && kind.GetString() != "codex") continue;
@@ -433,13 +432,13 @@ internal sealed class CodexPanel : StackPanel
                 if (title == "Guardian review" || _chats.Items.Cast<CodexChat>().Any(c => c.Id == id)) continue;
                 string? host = chat.TryGetProperty("hostId", out var h) ? h.GetString() : null;
                 _chats.Items.Add(new CodexChat(id, title, host));
+                if (_chats.Items.Count == _chatLimit + 1) break;
             }
-            _historyCursor = result.TryGetProperty("nextCursor", out var cursor) ? cursor.GetString() : null;
             _chats.SelectedItem = _newChat ? NewChatChoice : _chats.Items.Cast<CodexChat>().FirstOrDefault(c => c.Id == selected && c.Id.Length > 0) ?? _chats.Items.Cast<CodexChat>().FirstOrDefault(c => c.Id.Length > 0) ?? NewChatChoice;
             _status.Text = _newChat ? "" : _chats.Items.Count <= 1 ? $"No hay chats de {_agent} disponibles." : "Elegí el chat al que querés escribir.";
         }
         catch (Exception ex) { _status.Text = "No pude cargar los chats: " + UserError(ex); }
-        finally { _loading = false; _refresh.IsEnabled = true; _older.IsEnabled = _historyCursor != null; }
+        finally { _loading = false; _refresh.IsEnabled = true; }
         if (_chats.SelectedItem is CodexChat { Id.Length: 0 } && !_newChat) StartNewChat();
         ++_selectionVersion;
         await ReadAsync();
@@ -521,7 +520,14 @@ internal sealed class CodexPanel : StackPanel
                 string? host = result.TryGetProperty("hostId", out var h) ? h.GetString() : null;
                 chat = new CodexChat(id.GetString()!, "Nuevo chat", host);
                 _loading = true;
-                try { _newChat = false; _chats.Items.Insert(1, chat); _chats.SelectedItem = chat; }
+                try
+                {
+                    _newChat = false;
+                    _chats.Items.Insert(1, chat);
+                    if (_chats.Items.Count > _chatLimit + 1)
+                        _chats.Items.RemoveAt(_chats.Items.Count - 1);
+                    _chats.SelectedItem = chat;
+                }
                 finally { _loading = false; }
                 Save();
             }
