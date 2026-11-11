@@ -278,7 +278,15 @@ public partial class App : Application
         using var bmp = new Bitmap(16, 16);
         using var g = Graphics.FromImage(bmp);
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.FillEllipse(System.Drawing.Brushes.White, 1, 1, 14, 14);
+        using var capsule = new GraphicsPath();
+        capsule.AddArc(0.8f, 4.4f, 7.2f, 7.2f, 90, 180);
+        capsule.AddArc(8f, 4.4f, 7.2f, 7.2f, 270, 180);
+        capsule.CloseFigure();
+
+        using var outline = new System.Drawing.Pen(System.Drawing.Color.FromArgb(40, 43, 51), 0.85f);
+        g.FillPath(System.Drawing.Brushes.White, capsule);
+        g.DrawPath(outline, capsule);
+        g.FillEllipse(System.Drawing.Brushes.DarkSlateGray, 10.25f, 6.45f, 3.1f, 3.1f);
         return System.Drawing.Icon.FromHandle(bmp.GetHicon());
     }
 
