@@ -15,6 +15,12 @@ internal sealed class CodexPanel : StackPanel
 {
     private readonly ICodexConnection _connection;
     private readonly bool _persistSettings;
+    // Nombre del agente en los textos, modo de la tarjeta al que pertenece y archivo de preferencias.
+    private readonly string _agent;
+    private readonly string _mode;
+    private readonly string _settingsFile;
+    // Todas las tarjetas de IA muestran solo los chats más recientes.
+    private readonly int _chatLimit;
     private readonly ComboBox _chats = new() { MinWidth = 170, MaxWidth = 410, HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly MenuItem _refresh = new() { Header = "Actualizar chats" };
     private readonly MenuItem _older = new() { Header = "Cargar más chats" };
@@ -34,13 +40,12 @@ internal sealed class CodexPanel : StackPanel
     private readonly TextBox _input = new()
     {
         AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 36, MaxHeight = 80,
-        FontSize = 12, VerticalContentAlignment = VerticalAlignment.Center, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-        ToolTip = "Escribí a Codex. Enter envía; Shift+Enter agrega una línea."
+        FontSize = 12, VerticalContentAlignment = VerticalAlignment.Center, VerticalScrollBarVisibility = ScrollBarVisibility.Auto
     };
     private readonly Button _send = new() { Content = "↑", ToolTip = "Enviar · Enter", FontSize = 18, Width = 28, Height = 28, Margin = new Thickness(4, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center, BorderThickness = new Thickness(0), Background = System.Windows.Media.Brushes.Transparent };
-    private readonly TextBlock _status = new() { Text = "Conectando con Codex…", FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
+    private readonly TextBlock _status = new() { FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
     private readonly DispatcherTimer _poll = new() { Interval = TimeSpan.FromSeconds(4) };
-    private CodexPreferences _preferences = LocalCards.Read<CodexPreferences>("codex-plugin-settings.json") ?? new();
+    private CodexPreferences _preferences;
     private CancellationTokenSource? _lifetime;
     private bool _reading, _sending, _loading, _busy;
     private string? _historyCursor;
@@ -59,13 +64,22 @@ internal sealed class CodexPanel : StackPanel
     public static bool HoldOpen { get; private set; }
     public static event Action? HoldChanged;
     public static event Action? HideRequested;
+    // Hay un panel por agente: solo el que pidió mantener abierto el notch puede soltarlo.
+    private static CodexPanel? _holder;
 
     public CodexPanel() : this(new CodexConnection()) { }
 
-    internal CodexPanel(ICodexConnection connection, bool persistSettings = true)
+    internal CodexPanel(ICodexConnection connection, bool persistSettings = true, string agent = "Codex", string cardMode = "Codex", string settingsFile = "codex-plugin-settings.json", int chatLimit = 5)
     {
         _connection = connection;
         _persistSettings = persistSettings;
+        _agent = agent;
+        _mode = cardMode;
+        _settingsFile = settingsFile;
+        _chatLimit = chatLimit;
+        _preferences = LocalCards.Read<CodexPreferences>(settingsFile) ?? new();
+        _input.ToolTip = $"Escribí a {agent}. Enter envía; Shift+Enter agrega una línea.";
+        _status.Text = $"Conectando con {agent}…";
         var picker = new Grid();
         picker.ColumnDefinitions.Add(new ColumnDefinition());
         picker.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -76,7 +90,7 @@ internal sealed class CodexPanel : StackPanel
         options.SetResourceReference(Control.ForegroundProperty, "TextPrimaryBrush");
         options.Resources[typeof(MenuItem)] = OptionsItemStyle();
         _options.ContextMenu = options;
-        options.Items.Add(_keep); options.Items.Add(_refresh); options.Items.Add(_older);
+        options.Items.Add(_keep); options.Items.Add(_refresh); 
         var settingsItem = new MenuItem { Header = "Configurar modos…" };
         settingsItem.Click += (_, _) => SettingsRequested?.Invoke();
         options.Items.Add(settingsItem);
@@ -84,7 +98,7 @@ internal sealed class CodexPanel : StackPanel
         var modeItems = new Dictionary<string, MenuItem>();
         foreach (string mode in new[] { "Codex", "VS Code", "Claude" })
         {
-            var item = new MenuItem { Header = "Usar " + mode, IsCheckable = true, IsChecked = mode == "Codex", IsEnabled = mode != "Codex" };
+            var item = new MenuItem { Header = "Usar " + mode, IsCheckable = true, IsChecked = mode == _mode, IsEnabled = mode != _mode };
             item.Click += (_, _) => ModeRequested?.Invoke(mode);
             options.Items.Add(item);
             modeItems[mode] = item;
@@ -98,7 +112,7 @@ internal sealed class CodexPanel : StackPanel
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var field = new Grid();
         field.Children.Add(_input);
-        var placeholder = new TextBlock { Text = "Escribí a Codex…", FontSize = _input.FontSize, FontFamily = _input.FontFamily, IsHitTestVisible = false, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(11, 0, 0, 0) };
+        var placeholder = new TextBlock { Text = $"Escribí a {_agent}…", FontSize = _input.FontSize, FontFamily = _input.FontFamily, IsHitTestVisible = false, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(11, 0, 0, 0) };
         placeholder.SetBinding(TextBlock.FontFamilyProperty, new System.Windows.Data.Binding(nameof(Control.FontFamily)) { Source = _input });
         placeholder.SetBinding(TextBlock.FontWeightProperty, new System.Windows.Data.Binding(nameof(Control.FontWeight)) { Source = _input });
         placeholder.SetResourceReference(TextBlock.ForegroundProperty, "TextMutedBrush");
@@ -142,7 +156,6 @@ internal sealed class CodexPanel : StackPanel
         _keep.IsChecked = _preferences.KeepOpenWhileThinking;
         _keep.Click += (_, _) => { Save(); UpdateHold(); if (_busy && _keep.IsChecked != true) HideRequested?.Invoke(); };
         _refresh.Click += async (_, _) => await LoadChatsAsync(false);
-        _older.Click += async (_, _) => await LoadChatsAsync(true);
         _chats.DropDownOpened += (_, _) => AgentComposer.NotifyActivity();
         _chats.DropDownClosed += (_, _) => AgentComposer.NotifyActivity();
         _chats.Items.Add(NewChatChoice);
@@ -287,7 +300,7 @@ internal sealed class CodexPanel : StackPanel
     {
         _preferences = new(_keep.IsChecked == true, (_chats.SelectedItem as CodexChat)?.Id ?? _preferences.ChatId);
         if (!_persistSettings) return;
-        try { LocalCards.Write("codex-plugin-settings.json", _preferences); }
+        try { LocalCards.Write(_settingsFile, _preferences); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { _status.Text = "No pude guardar la preferencia: " + ex.Message; }
     }
 
@@ -311,7 +324,7 @@ internal sealed class CodexPanel : StackPanel
         {
             var picker = new Microsoft.Win32.OpenFileDialog
             {
-                Title = "Adjuntar fotos a Codex", Multiselect = true,
+                Title = $"Adjuntar fotos a {_agent}", Multiselect = true,
                 Filter = "Imágenes|*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.webp;*.tif;*.tiff"
             };
             if (picker.ShowDialog(Window.GetWindow(this)) == true)
@@ -395,6 +408,8 @@ internal sealed class CodexPanel : StackPanel
     private void UpdateHold()
     {
         bool hold = IsVisible && (_pickingImages || ((_busy || _sending) && _keep.IsChecked == true));
+        if (!hold && _holder != null && _holder != this) return;
+        _holder = hold ? this : null;
         if (hold == HoldOpen) return;
         HoldOpen = hold; HoldChanged?.Invoke();
     }
@@ -406,7 +421,7 @@ internal sealed class CodexPanel : StackPanel
         try
         {
             string? selected = (_chats.SelectedItem as CodexChat)?.Id ?? _preferences.ChatId;
-            var arguments = new Dictionary<string, object> { ["mode"] = "history", ["source"] = "codex", ["limit"] = 50 };
+            var arguments = new Dictionary<string, object> { ["mode"] = "history", ["source"] = "codex", ["limit"] = _chatLimit };
             if (more && _historyCursor != null) arguments["cursor"] = _historyCursor;
             var result = await _connection.CallAsync("list_threads", arguments, _lifetime?.Token ?? default);
             if (!more) { _chats.Items.Clear(); _chats.Items.Add(NewChatChoice); }
@@ -421,7 +436,7 @@ internal sealed class CodexPanel : StackPanel
             }
             _historyCursor = result.TryGetProperty("nextCursor", out var cursor) ? cursor.GetString() : null;
             _chats.SelectedItem = _newChat ? NewChatChoice : _chats.Items.Cast<CodexChat>().FirstOrDefault(c => c.Id == selected && c.Id.Length > 0) ?? _chats.Items.Cast<CodexChat>().FirstOrDefault(c => c.Id.Length > 0) ?? NewChatChoice;
-            _status.Text = _newChat ? "" : _chats.Items.Count <= 1 ? "No hay chats de Codex disponibles." : "Elegí el chat al que querés escribir.";
+            _status.Text = _newChat ? "" : _chats.Items.Count <= 1 ? $"No hay chats de {_agent} disponibles." : "Elegí el chat al que querés escribir.";
         }
         catch (Exception ex) { _status.Text = "No pude cargar los chats: " + UserError(ex); }
         finally { _loading = false; _refresh.IsEnabled = true; _older.IsEnabled = _historyCursor != null; }
@@ -440,7 +455,7 @@ internal sealed class CodexPanel : StackPanel
         bool readTranscript = false;
         try
         {
-            var list = await _connection.CallAsync("list_threads", new { limit = 50 }, _lifetime?.Token ?? default);
+            var list = await _connection.CallAsync("list_threads", new { limit = _chatLimit }, _lifetime?.Token ?? default);
             if (version != _selectionVersion) return;
             var entries = list.GetProperty("threads").EnumerateArray().ToList();
             if (list.TryGetProperty("pinnedThreads", out var pinned)) entries.AddRange(pinned.EnumerateArray());
@@ -455,11 +470,11 @@ internal sealed class CodexPanel : StackPanel
                     _busy = true; _status.Text = "";
                     if (DateTime.UtcNow - _lastQuestionCheckUtc >= TimeSpan.FromSeconds(8))
                     {
-                        _pendingQuestion = await CodexQuestions.ReadAsync(chat.Id);
+                        _pendingQuestion = await ReadQuestionAsync(chat.Id);
                         _lastQuestionCheckUtc = DateTime.UtcNow;
                         if (version != _selectionVersion) return;
                     }
-                    _previousConversation = _pendingQuestion ?? "Codex está pensando…";
+                    _previousConversation = _pendingQuestion ?? $"{_agent} está pensando…";
                     _conversation.Text = _previousConversation;
                     UpdateHold();
                 }
@@ -467,7 +482,7 @@ internal sealed class CodexPanel : StackPanel
                 _lastSnapshotStamp = stamp;
             }
         }
-        catch (Exception ex) { if (version == _selectionVersion) _status.Text = "No pude actualizar Codex: " + UserError(ex); }
+        catch (Exception ex) { if (version == _selectionVersion) _status.Text = $"No pude actualizar {_agent}: " + UserError(ex); }
         finally { _reading = false; }
         // Full transcripts are fetched only on selection or completion, not on every thinking tick.
         if (readTranscript && version == _selectionVersion) await ReadAsync();
@@ -484,7 +499,7 @@ internal sealed class CodexPanel : StackPanel
         bool creating = _newChat;
         _sending = true; _send.IsEnabled = false; _chats.IsEnabled = false;
         _attach.IsEnabled = _photos.IsEnabled = false;
-        _status.Text = "Enviando a Codex…"; UpdateHold();
+        _status.Text = $"Enviando a {_agent}…"; UpdateHold();
         try
         {
             _sentUtc = DateTime.UtcNow;
@@ -522,7 +537,7 @@ internal sealed class CodexPanel : StackPanel
             _pendingThread = chat!.Id; _pendingText = prompt[..Math.Min(prompt.Length, 200)];
             _busy = true; _status.Text = "";
             _previousConversation = null;
-            _conversation.Text = "Codex está pensando…";
+            _conversation.Text = $"{_agent} está pensando…";
             if (_keep.IsChecked != true) HideRequested?.Invoke();
         }
         catch (Exception ex) { _status.Text = "No se confirmó el envío. Revisá el chat antes de reenviar. " + UserError(ex); }
@@ -540,7 +555,7 @@ internal sealed class CodexPanel : StackPanel
             var args = new Dictionary<string, object> { ["threadId"] = chat.Id, ["turnLimit"] = 3, ["includeOutputs"] = false, ["maxOutputCharsPerItem"] = 20000 };
             if (chat.HostId != null && chat.HostId != "local") args["hostId"] = chat.HostId;
             var result = await _connection.CallAsync("read_thread", args, _lifetime?.Token ?? default);
-            _pendingQuestion = await CodexQuestions.ReadAsync(chat.Id);
+            _pendingQuestion = await ReadQuestionAsync(chat.Id);
             if (version != _selectionVersion) return;
             var thread = result.GetProperty("thread");
             string state = "";
@@ -579,19 +594,23 @@ internal sealed class CodexPanel : StackPanel
             _busy = busy;
             bool needsAttention = state.Contains("input", StringComparison.OrdinalIgnoreCase) || state.Contains("attention", StringComparison.OrdinalIgnoreCase)
                 || (status.ValueKind == JsonValueKind.Object && status.TryGetProperty("activeFlags", out var flags) && flags.EnumerateArray().Any(f => f.ToString().Contains("waiting", StringComparison.OrdinalIgnoreCase)));
-            _status.Text = needsAttention ? "Codex necesita tu atención. Revisá la solicitud en la app." : "";
-            string conversation = busy ? _pendingQuestion ?? "Codex está pensando…" : latestReply ?? "";
+            _status.Text = needsAttention ? $"{_agent} necesita tu atención. Revisá la solicitud en la app." : "";
+            string conversation = busy ? _pendingQuestion ?? $"{_agent} está pensando…" : latestReply ?? "";
             if (conversation.Length > 40000) conversation = conversation[..40000] + "\n\n… (continuá leyendo en el chat)";
-            if (conversation.Length == 0) conversation = "Escribí abajo para continuar este chat de Codex.";
+            if (conversation.Length == 0) conversation = $"Escribí abajo para continuar este chat de {_agent}.";
             if (_previousConversation != conversation)
             {
                 _previousConversation = conversation; _conversation.Text = conversation; _conversation.ScrollToHome();
             }
             UpdateHold();
         }
-        catch (Exception ex) { if (version == _selectionVersion) _status.Text = "No pude actualizar Codex: " + UserError(ex); }
+        catch (Exception ex) { if (version == _selectionVersion) _status.Text = $"No pude actualizar {_agent}: " + UserError(ex); }
         finally { _reading = false; }
     }
+
+    // Las preguntas pendientes (request_user_input) solo existen en la app de Codex.
+    private Task<string?> ReadQuestionAsync(string threadId) =>
+        _connection is CodexConnection ? CodexQuestions.ReadAsync(threadId) : Task.FromResult<string?>(null);
 }
 
 internal sealed record PhotoAttachment(string Name, string Path);

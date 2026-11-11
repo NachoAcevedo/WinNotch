@@ -36,6 +36,9 @@ public sealed class AgentCardView : UserControl
     };
 
     private readonly CodexPanel _codex = new();
+    // Modo VS Code: el mismo panel que Codex, con el agente elegido en la configuración.
+    private readonly CodexPanel _vscodeClaude = new(new VsCodeAgentConnection(TranscriptAgent.ClaudeCode), agent: "Claude Code", cardMode: "VS Code", settingsFile: "vscode-claude-plugin-settings.json");
+    private readonly CodexPanel _vscodeCodex = new(new VsCodeAgentConnection(TranscriptAgent.Codex), agent: "Codex", cardMode: "VS Code", settingsFile: "vscode-codex-plugin-settings.json");
     private readonly AgentModeSettingsView _modeSettings = new() { Visibility = Visibility.Collapsed };
     private readonly ExternalAgentPanel _external = new();
     private readonly StackPanel _legacyHeader = new() { Orientation = Orientation.Horizontal };
@@ -49,8 +52,11 @@ public sealed class AgentCardView : UserControl
         _provider.ItemsSource = modeSettings.Modes;
         CodexPanel.StylePicker(_provider);
         _provider.SelectedItem = modeSettings.Enabled(modeSettings.SelectedMode) ? modeSettings.SelectedMode : modeSettings.Modes.FirstOrDefault() ?? "Codex";
-        _codex.ModeRequested += mode => _provider.SelectedItem = mode;
-        _codex.SettingsRequested += ShowModeSettings;
+        foreach (var agentPanel in new[] { _codex, _vscodeClaude, _vscodeCodex })
+        {
+            agentPanel.ModeRequested += mode => _provider.SelectedItem = mode;
+            agentPanel.SettingsRequested += ShowModeSettings;
+        }
         _legacyHeader.Children.Add(_provider);
         var configure = new Button { Content = "⋯", ToolTip = "Configurar modos", Margin = new Thickness(8, 0, 0, 7), Padding = new Thickness(6, 0, 6, 0) };
         configure.Click += (_, _) => ShowModeSettings();
@@ -66,6 +72,8 @@ public sealed class AgentCardView : UserControl
             Refresh();
         };
         panel.Children.Add(_codex);
+        panel.Children.Add(_vscodeClaude);
+        panel.Children.Add(_vscodeCodex);
         panel.Children.Add(_external);
         Content = panel;
 
@@ -84,18 +92,24 @@ public sealed class AgentCardView : UserControl
     private void Refresh()
     {
         string selected = _provider.SelectedItem as string ?? "Codex";
-        bool codex = selected == "Codex";
-        _modeSettings.Visibility = _showingSettings ? Visibility.Visible : Visibility.Collapsed;
-        _legacyHeader.Visibility = !codex && !_showingSettings ? Visibility.Visible : Visibility.Collapsed;
-        _codex.Visibility = codex && !_showingSettings ? Visibility.Visible : Visibility.Collapsed;
-        _external.Visibility = !codex && !_showingSettings ? Visibility.Visible : Visibility.Collapsed;
-        if (_showingSettings) return;
         var preferences = AgentModeSettings.Read();
+        bool codex = selected == "Codex";
+        bool vscode = selected == "VS Code";
+        bool vscodeClaude = vscode && preferences.VsCodeAgent == "Claude Code";
+        bool panelMode = codex || vscode;
+        Visibility Show(bool visible) => visible && !_showingSettings ? Visibility.Visible : Visibility.Collapsed;
+        _modeSettings.Visibility = _showingSettings ? Visibility.Visible : Visibility.Collapsed;
+        _legacyHeader.Visibility = Show(!panelMode);
+        _codex.Visibility = Show(codex);
+        _vscodeClaude.Visibility = Show(vscodeClaude);
+        _vscodeCodex.Visibility = Show(vscode && !vscodeClaude);
+        _external.Visibility = Show(!panelMode);
+        if (_showingSettings) return;
         if (preferences.Enabled(selected) && preferences.SelectedMode != selected)
         {
             try { LocalCards.Write("agent-mode-settings.json", preferences with { SelectedMode = selected }); } catch (IOException) { }
         }
-        if (codex) return;
+        if (panelMode) return;
         _external.SetMode(selected);
         return;
 
