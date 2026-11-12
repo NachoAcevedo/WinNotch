@@ -98,19 +98,49 @@ public partial class App : Application
 
         // React to monitors being plugged/unplugged or rearranged
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        Microsoft.Win32.SystemEvents.SessionSwitch += OnSessionSwitch;
 
         // Silent update check shortly after startup (network failures are ignored)
         if (_settings.AutoCheckForUpdates)
             _ = CheckForUpdatesSilentlyAsync();
     }
 
-    private void OnDisplaySettingsChanged(object? sender, EventArgs e)
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e) => ScheduleDisplayReconcile();
+
+    private void OnPowerModeChanged(object? sender, Microsoft.Win32.PowerModeChangedEventArgs e)
     {
-        Dispatcher.BeginInvoke(() =>
+        if (e.Mode == Microsoft.Win32.PowerModes.Resume)
+            ScheduleDisplayReconcile();
+    }
+
+    private void OnSessionSwitch(object? sender, Microsoft.Win32.SessionSwitchEventArgs e)
+    {
+        if (e.Reason is Microsoft.Win32.SessionSwitchReason.SessionUnlock
+            or Microsoft.Win32.SessionSwitchReason.ConsoleConnect
+            or Microsoft.Win32.SessionSwitchReason.RemoteConnect)
+            ScheduleDisplayReconcile();
+    }
+
+    /// <summary>
+    /// Re-homes the islands now and again a bit later: after sleep/monitor wake,
+    /// Windows often reports the topology before every monitor is back, and also
+    /// shoves windows onto the surviving screen on its own.
+    /// </summary>
+    private void ScheduleDisplayReconcile()
+    {
+        Dispatcher.BeginInvoke(ReconcileDisplays);
+        _ = Dispatcher.InvokeAsync(async () =>
         {
-            _notchWindow?.HandleDisplayChange();
-            RebuildSecondaryWindows();
+            await System.Threading.Tasks.Task.Delay(TimeSpan.FromSeconds(2));
+            ReconcileDisplays();
         });
+    }
+
+    private void ReconcileDisplays()
+    {
+        _notchWindow?.HandleDisplayChange();
+        RebuildSecondaryWindows();
     }
 
     private void WireIslandEvents(NotchWindow window)
@@ -310,6 +340,8 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        Microsoft.Win32.SystemEvents.SessionSwitch -= OnSessionSwitch;
         if (_themeService != null)
             _themeService.ThemeChanged -= ApplyTrayTheme;
         _trayIcon?.Dispose();

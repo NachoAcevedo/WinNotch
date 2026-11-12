@@ -158,6 +158,9 @@ public partial class NotchWindow : Window
     // All window placement is done in PHYSICAL pixels (Per-Monitor V2) — DIPs
     // are only used inside the window, scaled by the screen's own DPI.
     private string? _screenDevice;
+    // The screen the user chose (drag/drop or settings). Never overwritten by the
+    // primary-screen fallback, so the island returns home once that monitor reappears.
+    private string? _preferredScreenDevice;
     private System.Drawing.Rectangle _screenPhysical;
     private double _screenScale = 1.0;
 
@@ -221,6 +224,7 @@ public partial class NotchWindow : Window
         _settings = settings;
         _isPrimary = isPrimary;
         _screenDevice = screenDevice;
+        _preferredScreenDevice = screenDevice;
         _vm = new NotchViewModel();
         DataContext = _vm;
 
@@ -854,7 +858,7 @@ public partial class NotchWindow : Window
     /// </summary>
     private void RefreshScreenBounds()
     {
-        var screen = ScreenHelper.FindScreenByDevice(_screenDevice);
+        var screen = ScreenHelper.FindScreenByDevice(_preferredScreenDevice);
         _screenDevice = screen.DeviceName;
         _screenPhysical = screen.Bounds;
         _screenScale = ScreenHelper.GetScaleForScreen(screen);
@@ -1527,6 +1531,7 @@ public partial class NotchWindow : Window
         var dropScreen = ScreenHelper.ScreenFromPhysicalPoint(
             new System.Drawing.Point((int)_dragLastScreen.X, (int)_dragLastScreen.Y));
         _screenDevice = dropScreen.DeviceName;
+        _preferredScreenDevice = dropScreen.DeviceName;
         var screenBounds = dropScreen.Bounds; // physical px
         double dropScale = ScreenHelper.GetScaleForScreen(dropScreen);
 
@@ -1568,7 +1573,7 @@ public partial class NotchWindow : Window
         if (_isPrimary)
         {
             _settings.NotchDockPosition = dock;
-            _settings.NotchScreenDevice = _screenDevice;
+            _settings.NotchScreenDevice = _preferredScreenDevice;
             _settings.Save();
             SettingsUpdatedByUser?.Invoke(_settings);
         }
