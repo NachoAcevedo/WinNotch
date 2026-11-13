@@ -30,14 +30,6 @@ public partial class InlineSettingsView : System.Windows.Controls.UserControl
         VersionText.Text = AppInfo.NameWithVersion;
     }
 
-    public void SetBrightnessAvailability(bool supported)
-    {
-        BrightnessHudCheck.IsEnabled = supported;
-        BrightnessHudCheck.ToolTip = supported
-            ? "Mostrar el indicador al cambiar el brillo"
-            : "Este monitor no expone el control de brillo que utiliza WinNotch.";
-    }
-
     public void LoadSettings(AppSettings settings)
     {
         _isLoading = true;
@@ -47,15 +39,13 @@ public partial class InlineSettingsView : System.Windows.Controls.UserControl
         ShowShadowCheck.IsChecked = settings.ShowShadow;
         ShowMusicCheck.IsChecked = settings.ShowMusicControls;
         ShowVisualizerCheck.IsChecked = settings.ShowVisualizer;
-        MusicFeedbackCheck.IsChecked = settings.ShowMusicFeedback;
-        CapsLockFeedbackCheck.IsChecked = settings.ShowCapsLockFeedback;
-        VolumeHudCheck.IsChecked = settings.ShowVolumeHud;
-        BrightnessHudCheck.IsChecked = settings.ShowBrightnessHud;
         ShowBatteryCheck.IsChecked = settings.ShowBattery;
         ShowCalendarCheck.IsChecked = settings.ShowCalendar;
         ShowWeatherCheck.IsChecked = settings.ShowWeather;
         ShowTasksCheck.IsChecked = settings.ShowTasks;
         ShowAgentCheck.IsChecked = settings.ShowAgent;
+        ShowAudioCardCheck.IsChecked = settings.ShowAudioCard;
+        ShowBatteryCardCheck.IsChecked = settings.ShowBatteryCard;
         ShowFilesCheck.IsChecked = settings.ShowFiles;
         AlwaysShowMinimumCheck.IsChecked = settings.AlwaysShowMinimum;
         ShowWebcamCheck.IsChecked = settings.ShowWebcam;
@@ -78,25 +68,44 @@ public partial class InlineSettingsView : System.Windows.Controls.UserControl
             ThemeDarkRadio.IsChecked = true;
 
         _isLoading = false;
+        UpdateDependentOptions();
+    }
+
+    /// <summary>
+    /// Card options follow their card: disabled while the card is off. A card section
+    /// with no options (e.g. Calendar without plugins) is hidden.
+    /// </summary>
+    private void UpdateDependentOptions()
+    {
+        SetEnabled(MediaOptionsSection, ShowMusicCheck.IsChecked == true);
+        SetEnabled(CalendarOptionsSection, ShowCalendarCheck.IsChecked == true);
+        SetEnabled(WebcamFpsPanel, ShowWebcamCheck.IsChecked == true);
+        CalendarOptionsSection.Visibility = CalendarOptionsHost.Children.Count > 0
+            ? Visibility.Visible : Visibility.Collapsed;
+
+        static void SetEnabled(FrameworkElement element, bool enabled)
+        {
+            element.IsEnabled = enabled;
+            element.Opacity = enabled ? 1 : 0.4;
+        }
     }
 
     private void OnSettingChanged(object sender, RoutedEventArgs e)
     {
         if (_isLoading || _settings == null) return;
+        UpdateDependentOptions();
 
         _settings.StartOnBoot = StartOnBootCheck.IsChecked == true;
         _settings.ShowShadow = ShowShadowCheck.IsChecked == true;
         _settings.ShowMusicControls = ShowMusicCheck.IsChecked == true;
         _settings.ShowVisualizer = ShowVisualizerCheck.IsChecked == true;
-        _settings.ShowMusicFeedback = MusicFeedbackCheck.IsChecked == true;
-        _settings.ShowCapsLockFeedback = CapsLockFeedbackCheck.IsChecked == true;
-        _settings.ShowVolumeHud = VolumeHudCheck.IsChecked == true;
-        _settings.ShowBrightnessHud = BrightnessHudCheck.IsChecked == true;
         _settings.ShowBattery = ShowBatteryCheck.IsChecked == true;
         _settings.ShowCalendar = ShowCalendarCheck.IsChecked == true;
         _settings.ShowWeather = ShowWeatherCheck.IsChecked == true;
         _settings.ShowTasks = ShowTasksCheck.IsChecked == true;
         _settings.ShowAgent = ShowAgentCheck.IsChecked == true;
+        _settings.ShowAudioCard = ShowAudioCardCheck.IsChecked == true;
+        _settings.ShowBatteryCard = ShowBatteryCardCheck.IsChecked == true;
         _settings.ShowFiles = ShowFilesCheck.IsChecked == true;
         _settings.AlwaysShowMinimum = AlwaysShowMinimumCheck.IsChecked == true;
         _settings.ShowWebcam = ShowWebcamCheck.IsChecked == true;

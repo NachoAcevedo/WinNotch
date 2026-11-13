@@ -25,7 +25,7 @@ public sealed class CalendarAccountsSettings
 /// Usa la sesión de Outlook ya abierta (COM), sin login ni autorizaciones nuevas.
 /// Cada vez que el CalendarService integrado refresca, este plugin vuelve a leer
 /// todas las cuentas y reemplaza la lista que muestran el panel y la pestaña.
-/// En Ajustes, debajo de "Calendar panel", agrega un interruptor por cuenta.
+/// En Ajustes, en la sección de opciones de Calendario, agrega un interruptor por cuenta.
 /// </summary>
 [WinNotchPlugin("personal.calendar.allaccounts", "Calendario multicuenta", "1.0.0", "Nacho_114")]
 public sealed class CalendarAccountsPlugin : PluginBase
@@ -399,40 +399,32 @@ public sealed class CalendarAccountsPlugin : PluginBase
         }
     }
 
-    /// <summary>Agrega, debajo de "Calendar panel", un contenedor con un interruptor por cuenta.</summary>
+    /// <summary>
+    /// Agrega un contenedor con un interruptor por cuenta en la sección de opciones de
+    /// Calendario de Ajustes (CalendarOptionsHost). WinNotch deshabilita esa sección
+    /// cuando la tarjeta de calendario está apagada.
+    /// </summary>
     private void InstallSettingsUi()
     {
         foreach (var view in SettingsDom.FindSettingsViews())
         {
-            var calendarRow = SettingsDom.FindRow(view, "ShowCalendarCheck");
-            if (calendarRow == null)
+            if (view.FindName("CalendarOptionsHost") is not Panel host)
             {
-                Context?.Log("Calendario multicuenta: no se encontró 'Calendar panel' en Ajustes", PluginLogLevel.Warning);
+                Context?.Log("Calendario multicuenta: no se encontró la sección Calendario en Ajustes", PluginLogLevel.Warning);
                 continue;
             }
 
-            var (panel, row) = calendarRow.Value;
-            if (panel.Children.OfType<FrameworkElement>().Any(e => Equals(e.Tag, AccountsPanelTag)))
+            if (FindAccountsContainer(view) == null)
             {
-                continue;
-            }
-
-            var container = new StackPanel { Tag = AccountsPanelTag };
-            var block = SettingsDom.RowBlock(view, panel, row);
-            panel.Children.Insert(panel.Children.IndexOf(block[^1]) + 1, container);
-
-            // Las cuentas solo se muestran con el panel de calendario activado.
-            if (view.FindName("ShowCalendarCheck") is CheckBox calendarCheck)
-            {
-                void Sync(object? s, RoutedEventArgs? e) =>
-                    container.Visibility = calendarCheck.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-                calendarCheck.Checked += Sync;
-                calendarCheck.Unchecked += Sync;
-                Sync(null, null);
+                host.Children.Add(new StackPanel { Tag = AccountsPanelTag });
             }
         }
         RebuildAccountToggles();
     }
+
+    private static StackPanel? FindAccountsContainer(WinNotch.Views.InlineSettingsView view) =>
+        (view.FindName("CalendarOptionsHost") as Panel)?.Children.OfType<StackPanel>()
+            .FirstOrDefault(e => Equals(e.Tag, AccountsPanelTag));
 
     private void RebuildAccountToggles()
     {
@@ -446,15 +438,14 @@ public sealed class CalendarAccountsPlugin : PluginBase
 
         foreach (var view in SettingsDom.FindSettingsViews())
         {
-            var calendarRow = SettingsDom.FindRow(view, "ShowCalendarCheck");
-            var container = calendarRow?.Panel.Children.OfType<StackPanel>().FirstOrDefault(e => Equals(e.Tag, AccountsPanelTag));
+            var container = FindAccountsContainer(view);
             if (container == null)
             {
                 continue;
             }
 
             container.Children.Clear();
-            var rowMargin = (calendarRow!.Value.Row as FrameworkElement)?.Margin ?? new Thickness(0, 6, 0, 6);
+            var rowMargin = new Thickness(0, 2, 0, 2);
 
             if (known.Count == 0)
             {
@@ -462,7 +453,7 @@ public sealed class CalendarAccountsPlugin : PluginBase
                 {
                     Text = "Abrí Outlook para ver las cuentas del calendario.",
                     FontSize = 11.0,
-                    Margin = new Thickness(14.0, rowMargin.Top, 0.0, rowMargin.Bottom),
+                    Margin = new Thickness(0.0, rowMargin.Top, 0.0, rowMargin.Bottom),
                     TextWrapping = TextWrapping.Wrap
                 };
                 hint.SetResourceReference(TextBlock.ForegroundProperty, "TextFaintBrush");
@@ -472,14 +463,14 @@ public sealed class CalendarAccountsPlugin : PluginBase
 
             foreach (var account in known)
             {
-                var grid = new Grid { Margin = rowMargin };
+                var grid = new Grid { Margin = rowMargin, Height = 32 };
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
                 var label = new TextBlock
                 {
                     Text = account,
-                    Margin = new Thickness(14.0, 0.0, 8.0, 0.0),
+                    Margin = new Thickness(0.0, 0.0, 8.0, 0.0),
                     VerticalAlignment = VerticalAlignment.Center,
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     ToolTip = account
@@ -488,7 +479,6 @@ public sealed class CalendarAccountsPlugin : PluginBase
                 {
                     label.Style = labelStyle;
                 }
-                label.FontSize = Math.Max(10.0, label.FontSize - 1.0);
                 grid.Children.Add(label);
 
                 var toggle = new CheckBox

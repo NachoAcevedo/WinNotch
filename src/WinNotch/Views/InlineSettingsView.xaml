@@ -113,87 +113,62 @@
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
 
-                <!-- Music -->
-                <TextBlock Text="Media" Style="{StaticResource SectionHeader}"/>
-
-                <Grid Height="32" Margin="0,2">
-                    <TextBlock Text="Controles multimedia" Style="{StaticResource SettingLabel}"/>
-                    <CheckBox x:Name="ShowMusicCheck" Style="{StaticResource ToggleSwitch}"
-                              HorizontalAlignment="Right" VerticalAlignment="Center"
-                              Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                </Grid>
-
-                <Grid Height="32" Margin="0,2">
-                    <TextBlock Text="Visualizador de audio" Style="{StaticResource SettingLabel}"/>
-                    <CheckBox x:Name="ShowVisualizerCheck" Style="{StaticResource ToggleSwitch}"
-                              HorizontalAlignment="Right" VerticalAlignment="Center"
-                              Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                </Grid>
-
-                <Grid Height="32" Margin="0,2">
-                    <TextBlock Text="Avisos de play, pausa y canción" Style="{StaticResource SettingLabel}"/>
-                    <CheckBox x:Name="MusicFeedbackCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                </Grid>
-                <Grid Height="32" Margin="0,2">
-                    <TextBlock Text="Avisos de Caps Lock" Style="{StaticResource SettingLabel}"/>
-                    <CheckBox x:Name="CapsLockFeedbackCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                </Grid>
-
-                <!-- System HUD -->
-                <TextBlock Text="Avisos del sistema" Style="{StaticResource SectionHeader}"/>
-
-                <Grid Height="32" Margin="0,2">
-                    <TextBlock Text="Aviso de volumen" Style="{StaticResource SettingLabel}"/>
-                    <CheckBox x:Name="VolumeHudCheck" Style="{StaticResource ToggleSwitch}"
-                              HorizontalAlignment="Right" VerticalAlignment="Center"
-                              Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                </Grid>
-
-                <Grid Height="32" Margin="0,2">
-                    <TextBlock Text="Aviso de brillo" Style="{StaticResource SettingLabel}"/>
-                    <CheckBox x:Name="BrightnessHudCheck" Style="{StaticResource ToggleSwitch}"
-                              HorizontalAlignment="Right" VerticalAlignment="Center"
-                              Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                </Grid>
-
-                <Grid Height="32" Margin="0,2">
-                    <TextBlock Text="Tarjeta de clima" Style="{StaticResource SettingLabel}"/>
-                    <CheckBox x:Name="ShowWeatherCheck" Style="{StaticResource ToggleSwitch}"
-                              HorizontalAlignment="Right" VerticalAlignment="Center"
-                              Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                </Grid>
-
-                <Grid Height="32" Margin="0,2">
-                    <TextBlock Text="Tarjeta de tareas" Style="{StaticResource SettingLabel}"/>
-                    <CheckBox x:Name="ShowTasksCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                </Grid>
-                <Grid Height="32" Margin="0,2">
-                    <TextBlock Text="Tarjeta de IA (Codex / Claude)" Style="{StaticResource SettingLabel}"/>
-                    <CheckBox x:Name="ShowAgentCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                </Grid>
-                <Grid Height="32" Margin="0,2">
-                    <TextBlock Text="Dock de archivos" Style="{StaticResource SettingLabel}"/>
-                    <CheckBox x:Name="ShowFilesCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                </Grid>
                 <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Notch mínimo siempre visible" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="AlwaysShowMinimumCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
                 <TextBlock Text="Visible sobre ventanas maximizadas y juegos. Pasá el mouse para abrirlo."
-                           Foreground="{DynamicResource TextMutedBrush}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,6"/>
-                <!-- Battery & Calendar -->
+                           Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,0,4"
+                           TextWrapping="Wrap"/>
+
+                <!-- Cards: on/off for every card. Their options live in their own sections after Widgets. -->
+                <TextBlock Text="Tarjetas" Style="{StaticResource SectionHeader}"/>
+
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Media" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="ShowMusicCheck" Style="{StaticResource ToggleSwitch}"
+                              HorizontalAlignment="Right" VerticalAlignment="Center"
+                              Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Calendario" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="ShowCalendarCheck" Style="{StaticResource ToggleSwitch}"
+                              HorizontalAlignment="Right" VerticalAlignment="Center"
+                              Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Clima" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="ShowWeatherCheck" Style="{StaticResource ToggleSwitch}"
+                              HorizontalAlignment="Right" VerticalAlignment="Center"
+                              Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Tareas" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="ShowTasksCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="IA (Codex / Claude)" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="ShowAgentCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Audio" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="ShowAudioCardCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Baterías de dispositivos" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="ShowBatteryCardCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Dock de archivos" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="ShowFilesCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+
+                <!-- Widgets -->
                 <TextBlock Text="Widgets" Style="{StaticResource SectionHeader}"/>
 
                 <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Indicador de batería" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowBatteryCheck" Style="{StaticResource ToggleSwitch}"
-                              HorizontalAlignment="Right" VerticalAlignment="Center"
-                              Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                </Grid>
-
-                <Grid Height="32" Margin="0,2">
-                    <TextBlock Text="Calendario" Style="{StaticResource SettingLabel}"/>
-                    <CheckBox x:Name="ShowCalendarCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
@@ -224,6 +199,25 @@
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                 </Grid>
+
+                <!-- Media card options (disabled while the Media card is off) -->
+                <StackPanel x:Name="MediaOptionsSection">
+                    <TextBlock Text="Media" Style="{StaticResource SectionHeader}"/>
+
+                    <Grid Height="32" Margin="0,2">
+                        <TextBlock Text="Visualizador de audio" Style="{StaticResource SettingLabel}"/>
+                        <CheckBox x:Name="ShowVisualizerCheck" Style="{StaticResource ToggleSwitch}"
+                                  HorizontalAlignment="Right" VerticalAlignment="Center"
+                                  Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Calendar card options: plugins (BetterCalendar) add their rows to CalendarOptionsHost.
+                     The section is hidden while empty and disabled while the Calendar card is off. -->
+                <StackPanel x:Name="CalendarOptionsSection">
+                    <TextBlock Text="Calendario" Style="{StaticResource SectionHeader}"/>
+                    <StackPanel x:Name="CalendarOptionsHost"/>
+                </StackPanel>
 
                 <!-- Screens -->
                 <TextBlock Text="Pantallas" Style="{StaticResource SectionHeader}"/>

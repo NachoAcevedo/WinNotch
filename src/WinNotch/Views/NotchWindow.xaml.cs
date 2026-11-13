@@ -83,6 +83,8 @@ public partial class NotchWindow : Window
         "tasks" => _settings.ShowTasks,
         "agent" => _settings.ShowAgent,
         "files" => _settings.ShowFiles,
+        "eartrumpet" => _settings.ShowAudioCard,
+        "batterymanager" => _settings.ShowBatteryCard,
         _ => true
     };
     private bool ShouldShowCard(string key) => IsCardEnabled(key) &&
@@ -355,8 +357,6 @@ public partial class NotchWindow : Window
     {
         // Global one-time init happens once app-wide; every island awaits it
         await _services.EnsureInitializedAsync(_settings);
-        InlineSettings.SetBrightnessAvailability(_brightnessService.IsSupported);
-        VerticalInlineSettings.SetBrightnessAvailability(_brightnessService.IsSupported);
 
         // Bind views to services
         MusicPlayer.Bind(_mediaService);
