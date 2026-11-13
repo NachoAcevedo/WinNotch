@@ -38,7 +38,10 @@ internal static class OutlookKeeper
                         return;
                     }
                     app = Activator.CreateInstance(type);
-                    ((dynamic)app!).GetNamespace("MAPI").Logon();
+                    // Logon() sin argumentos muestra el diálogo "Choose Profile": se entra directo
+                    // con el perfil predeterminado, sin diálogo y reutilizando la sesión si ya hay una.
+                    object profile = DefaultProfile() ?? Type.Missing;
+                    ((dynamic)app!).GetNamespace("MAPI").Logon(profile, Type.Missing, false, false);
                     log("Outlook abierto en la bandeja");
                     _dispatcher = Dispatcher.CurrentDispatcher;
                     Dispatcher.Run();
@@ -63,6 +66,17 @@ internal static class OutlookKeeper
             _thread.SetApartmentState(ApartmentState.STA);
             _thread.Start();
         }
+    }
+
+    /// <summary>Perfil predeterminado de Outlook (el que usa al abrirse normalmente).</summary>
+    private static string? DefaultProfile()
+    {
+        foreach (var version in new[] { "16.0", "15.0" })
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey($@"Software\Microsoft\Office\{version}\Outlook");
+            if (key?.GetValue("DefaultProfile") is string name && name.Length > 0) return name;
+        }
+        return null;
     }
 
     /// <summary>Suelta la referencia: si Outlook no tiene ventana abierta, se cierra solo.</summary>

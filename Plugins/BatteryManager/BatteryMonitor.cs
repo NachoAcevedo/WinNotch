@@ -10,6 +10,12 @@ internal sealed class BatteryMonitor
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly DispatcherTimer _poll = new() { Interval = TimeSpan.FromMinutes(2) };
     private readonly DispatcherTimer _nextAlert = new() { Interval = TimeSpan.FromSeconds(3) };
+    // Al iniciar con Windows el Bluetooth puede no estar listo: si la primera lectura viene
+    // vacía se reintenta seguido un rato antes de decir que no hay dispositivos.
+    private readonly DispatcherTimer _startupRetry = new() { Interval = TimeSpan.FromSeconds(10) };
+    private const int StartupRetries = 6;
+    private int _emptyScans;
+    private bool _foundAny;
     private readonly Dictionary<string, BatteryBand> _bands = new();
     private readonly Dictionary<string, DeviceBattery> _pending = new();
     private readonly Func<DeviceBattery, bool> _showAlert;
@@ -20,6 +26,11 @@ internal sealed class BatteryMonitor
         _showAlert = showAlert;
         _poll.Tick += async (_, _) => await RefreshAsync();
         _nextAlert.Tick += (_, _) => ShowNextAlert();
+        _startupRetry.Tick += async (_, _) =>
+        {
+            _startupRetry.Stop();
+            await RefreshAsync();
+        };
     }
 
     public BatterySnapshot? Snapshot { get; private set; }
@@ -37,6 +48,9 @@ internal sealed class BatteryMonitor
     {
         _poll.Stop();
         _nextAlert.Stop();
+        _startupRetry.Stop();
+        _emptyScans = 0;
+        _foundAny = false;
         _scan?.Cancel();
         _bands.Clear();
         _pending.Clear();
@@ -105,6 +119,14 @@ internal sealed class BatteryMonitor
 
     internal void Apply(BatterySnapshot snapshot)
     {
+        if (snapshot.Devices.Length > 0) _foundAny = true;
+        else if (!_foundAny && ++_emptyScans < StartupRetries)
+        {
+            UpdateStatus("Buscando dispositivos…");
+            _startupRetry.Start();
+            return;
+        }
+
         Snapshot = snapshot;
         UpdateStatus(snapshot.Failures > 0 ? "Algunos lectores no respondieron."
             : snapshot.Devices.Length == 0 ? "No se detectaron dispositivos compatibles." : "");

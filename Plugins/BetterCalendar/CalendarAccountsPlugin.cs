@@ -58,6 +58,7 @@ public sealed class CalendarAccountsPlugin : PluginBase
     private PropertyInfo? _todayEventsProp;
     private FieldInfo? _eventsUpdatedField;
     private int _refreshing;
+    private bool _autoOpened;
     private volatile bool _publishing;
 
     public override string Id => "personal.calendar.allaccounts";
@@ -148,7 +149,14 @@ public sealed class CalendarAccountsPlugin : PluginBase
                 if (events == null)
                 {
                     Context?.Log("Calendario multicuenta: Outlook no está abierto", PluginLogLevel.Warning);
-                    Application.Current.Dispatcher.BeginInvoke(ShowOutlookClosed);
+                    Application.Current.Dispatcher.BeginInvoke(() =>
+                    {
+                        // Una vez por sesión de WinNotch se abre solo; después queda el botón.
+                        bool autoOpen = !_autoOpened;
+                        _autoOpened = true;
+                        ShowOutlookClosed(opening: autoOpen);
+                        if (autoOpen) OpenOutlookInTray();
+                    });
                     return;
                 }
                 Publish(events);
@@ -584,7 +592,7 @@ public sealed class CalendarAccountsPlugin : PluginBase
     /// Con Outlook cerrado, la tarjeta del calendario muestra un botón para abrirlo en la bandeja
     /// en lugar de "No upcoming events" (que haría pensar que no hay eventos).
     /// </summary>
-    private void ShowOutlookClosed()
+    private void ShowOutlookClosed(bool opening)
     {
         foreach (var window in Application.Current.Windows.OfType<NotchWindow>())
         {
@@ -597,7 +605,9 @@ public sealed class CalendarAccountsPlugin : PluginBase
             panel.Children.Clear();
             var message = new TextBlock
             {
-                Text = "Outlook está cerrado: sin él no se ven tus eventos.",
+                Text = opening
+                    ? "Abriendo Outlook en la bandeja para leer tus eventos…"
+                    : "Outlook está cerrado: sin él no se ven tus eventos.",
                 FontSize = 12.0,
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0.0, 4.0, 0.0, 8.0)
@@ -611,7 +621,7 @@ public sealed class CalendarAccountsPlugin : PluginBase
                 OpenOutlookInTray();
             };
             panel.Children.Add(message);
-            panel.Children.Add(open);
+            if (!opening) panel.Children.Add(open);
         }
     }
 
