@@ -13,14 +13,14 @@ public sealed class WeatherCardView : UserControl
     private static readonly System.Threading.SemaphoreSlim RefreshLock = new(1, 1);
     private static WeatherForecast? _cached;
     private static DateTime _updatedUtc;
-    private readonly TextBlock _temperature = Label("—", 32, "TextPrimaryBrush");
+    private readonly TextBlock _temperature = Label("—", 44, "TextPrimaryBrush");
     private readonly TextBlock _summary = Label("Pronóstico pendiente", 12, "TextSecondaryBrush");
     private readonly TextBlock _feelsLike = Label("—", 13, "TextPrimaryBrush");
     private readonly TextBlock _range = Label("—", 13, "TextPrimaryBrush");
     private readonly TextBlock _rain = Label("—", 13, "TextPrimaryBrush");
     private readonly TextBlock _status = Label("", 11, "TextMutedBrush");
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMinutes(1) };
-    private readonly WeatherIcon _icon = new() { Width = 36, Height = 36 };
+    private readonly WeatherIcon _icon = new() { Width = 40, Height = 40 };
     private bool _busy;
     private DateTime _retryAfterUtc;
 
@@ -28,10 +28,10 @@ public sealed class WeatherCardView : UserControl
     {
         var panel = new StackPanel { Margin = new Thickness(4, 3, 4, 0) };
         var current = new DockPanel();
-        var openWeather = new Button { Content = _icon, ToolTip = "Abrir el pronóstico", Padding = new Thickness(3), Margin = new Thickness(8, 0, 0, 0) };
+        var openWeather = new Button { Content = _icon, ToolTip = "Abrir el pronóstico", Padding = new Thickness(3), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
         System.Windows.Automation.AutomationProperties.SetName(openWeather, "Abrir el pronóstico");
         openWeather.Click += (_, _) => OpenWeather();
-        DockPanel.SetDock(openWeather, Dock.Right);
+        DockPanel.SetDock(openWeather, Dock.Left);
         current.Children.Add(openWeather);
         _temperature.FontWeight = FontWeights.SemiBold;
         _temperature.Margin = new Thickness(0, 0, 14, 0);
@@ -54,6 +54,9 @@ public sealed class WeatherCardView : UserControl
         details.Children.Add(Metric("Lluvia", _rain));
         panel.Children.Add(details);
         _status.Margin = new Thickness(0, 7, 0, 0);
+        _status.HorizontalAlignment = HorizontalAlignment.Left;
+        _status.VerticalAlignment = VerticalAlignment.Center;
+        _status.Opacity = 0.65;
         panel.Children.Add(_status);
         Content = panel;
         Loaded += async (_, _) => { _timer.Start(); await RefreshAsync(); };
