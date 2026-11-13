@@ -30,8 +30,9 @@
         <!-- Song title -->
         <TextBlock x:Name="CompactTitle"
                    Grid.Column="1"
-                   Foreground="{DynamicResource TextSecondaryBrush}"
-                   FontSize="11"
+                   Foreground="{DynamicResource TextPrimaryBrush}"
+                   FontSize="12"
+                   FontWeight="Bold"
                    MaxWidth="240"
                    TextTrimming="CharacterEllipsis"
                    TextWrapping="NoWrap"

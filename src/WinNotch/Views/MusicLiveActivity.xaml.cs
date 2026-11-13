@@ -34,9 +34,6 @@ public partial class MusicLiveActivity : UserControl
     {
         bool lyric = _lyricLine.Length > 0 || _lyricsLoading;
         CompactTitle.Text = _lyricsLoading ? string.Empty : lyric ? _lyricLine : _title;
-        CompactTitle.SetResourceReference(TextBlock.ForegroundProperty, lyric ? "TextPrimaryBrush" : "TextSecondaryBrush");
-        CompactTitle.FontWeight = lyric ? FontWeights.Bold : FontWeights.Normal;
-        CompactTitle.FontSize = lyric ? 12 : 11;
         CompactTitle.Width = lyric ? LyricWidth : double.NaN;
         CompactTitle.TextAlignment = lyric ? TextAlignment.Center : TextAlignment.Left;
         CompactArtBox.Visibility = lyric ? Visibility.Collapsed : Visibility.Visible;
