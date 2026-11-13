@@ -16,14 +16,23 @@ internal sealed class BatteryMonitor
     private const int StartupRetries = 6;
     private int _emptyScans;
     private bool _foundAny;
-    private readonly Dictionary<string, BatteryBand> _bands = new();
+    private bool _hasBaseline;
+    private readonly HashSet<string> _online = new();
+    private readonly Dictionary<string, DeviceBattery> _connections = new();
+    private readonly Dictionary<string, DeviceBattery> _lastReadings = new();
+    private readonly Dictionary<string, DeviceBattery> _full = new();
+    private BatteryPreferences _preferences;
+    private BatterySnapshot? _rawSnapshot;
     private readonly Dictionary<string, DeviceBattery> _pending = new();
-    private readonly Func<DeviceBattery, bool> _showAlert;
+    private readonly Func<DeviceBattery, BatteryAlert, bool> _showAlert;
     private readonly Action<string> _log;
     private CancellationTokenSource? _scan;
 
-    public BatteryMonitor(Func<DeviceBattery, bool> showAlert, Action<string> log)
+    public BatteryMonitor(BatteryPreferences preferences, Func<DeviceBattery, BatteryAlert, bool> showAlert, Action<string> log)
     {
+        _preferences = preferences;
+        _poll.Interval = TimeSpan.FromSeconds(preferences.IntervalSeconds is 15 or 30 or 60 or 120 or 300
+            ? preferences.IntervalSeconds : 120);
         _showAlert = showAlert;
         _log = log;
         _poll.Tick += async (_, _) => await RefreshAsync();
@@ -53,8 +62,14 @@ internal sealed class BatteryMonitor
         _startupRetry.Stop();
         _emptyScans = 0;
         _foundAny = false;
+        _hasBaseline = false;
+        _online.Clear();
+        _connections.Clear();
         _scan?.Cancel();
-        _bands.Clear();
+        _lastReadings.Clear();
+        _full.Clear();
+        _rawSnapshot = null;
+        Snapshot = null;
         _pending.Clear();
     }
 
@@ -83,6 +98,10 @@ internal sealed class BatteryMonitor
                 WorkingDirectory = Path.GetDirectoryName(reader)!
             }
         };
+
+        process.StartInfo.ArgumentList.Add("--history");
+        process.StartInfo.ArgumentList.Add(Path.Combine(Path.GetDirectoryName(reader)!, "..", "history.json"));
+        if (_preferences.PlayStationFullMode) process.StartInfo.ArgumentList.Add("--playstation-full-mode");
 
         try
         {
@@ -132,9 +151,7 @@ internal sealed class BatteryMonitor
             return;
         }
 
-        Snapshot = snapshot;
-        UpdateStatus(snapshot.Failures > 0 ? "Algunos lectores no respondieron."
-            : snapshot.Devices.Length == 0 ? "No se detectaron dispositivos compatibles." : "");
+        _rawSnapshot = snapshot;
 
         var online = new HashSet<string>();
         foreach (var device in snapshot.Devices)
@@ -142,27 +159,93 @@ internal sealed class BatteryMonitor
             if (!device.Online || device.Level is not (>= 0 and <= 100)) continue;
             string key = device.Identity;
             online.Add(key);
+            if ((_hasBaseline && !_online.Contains(key)) || _connections.ContainsKey(key))
+                _connections[key] = device;
 
-            var band = device.Band;
-            bool known = _bands.TryGetValue(key, out var previous);
-            _bands[key] = band;
-            if (device.Charging || band == BatteryBand.Normal || (known && band < previous))
+            _lastReadings.TryGetValue(key, out var previous);
+            _lastReadings[key] = device;
+            if (!IsLow(device))
                 _pending.Remove(key);
-            else if ((known && band > previous) || _pending.ContainsKey(key))
+            else if ((previous != null && !IsLow(previous)) || _pending.ContainsKey(key))
                 _pending[key] = device;
+
+            if (!_preferences.For(key).NotifyFull || device.Level != 100)
+                _full.Remove(key);
+            else if (_online.Contains(key) && previous is { Charging: true, Level: < 100 })
+                _full[key] = device;
         }
-        foreach (var key in _pending.Keys.Where(key => !online.Contains(key)).ToArray())
-            _pending.Remove(key);
+
+        if (snapshot.Failures == 0)
+        {
+            _online.IntersectWith(online);
+            foreach (var queue in new[] { _pending, _full, _connections })
+                foreach (var key in queue.Keys.Where(key => !online.Contains(key)).ToArray())
+                    queue.Remove(key);
+            _hasBaseline = true;
+        }
+        _online.UnionWith(online);
+        UpdateDisplay();
         if (!_nextAlert.IsEnabled) ShowNextAlert();
+    }
+
+    public void SetPreferences(BatteryPreferences preferences)
+    {
+        _preferences = preferences;
+        _poll.Interval = TimeSpan.FromSeconds(preferences.IntervalSeconds is 15 or 30 or 60 or 120 or 300
+            ? preferences.IntervalSeconds : 120);
+        foreach (var key in _pending.Keys.Where(key => !IsLow(_pending[key])).ToArray())
+            _pending.Remove(key);
+        foreach (var key in _full.Keys.Where(key => !preferences.For(key).NotifyFull).ToArray())
+            _full.Remove(key);
+        UpdateDisplay();
+    }
+
+    private bool IsLow(DeviceBattery device) =>
+        _preferences.For(device.Identity).LowThreshold is > 0 and var threshold &&
+        !device.Charging && device.Level <= threshold;
+
+    private void UpdateDisplay()
+    {
+        if (_rawSnapshot is not { } raw) return;
+        var devices = raw.Devices;
+        {
+            var current = devices.Select(device => device.Identity).ToHashSet();
+            devices = devices
+                .Select(device => !device.Online && _preferences.For(device.Identity).KeepOffline && _lastReadings.TryGetValue(device.Identity, out var last)
+                    ? last with { Online = false, Charging = false } : device)
+                .Concat(_lastReadings.Values.Where(device => !current.Contains(device.Identity) && _preferences.For(device.Identity).KeepOffline)
+                    .Select(device => device with { Online = false, Charging = false }))
+                .ToArray();
+        }
+        Snapshot = raw with
+        {
+            Devices = devices.Select(device => _preferences.For(device.Identity).ShowRemaining
+                ? device : device with { SecondsLeft = null }).ToArray()
+        };
+        UpdateStatus(raw.Failures > 0 ? "Algunos lectores no respondieron."
+            : devices.Length == 0 ? "No se detectaron dispositivos compatibles." : "");
     }
 
     private void ShowNextAlert()
     {
         _nextAlert.Stop();
-        var alert = _pending.Values.OrderByDescending(device => device.Band).FirstOrDefault();
-        if (alert is null || !_showAlert(alert)) return;
+        var alert = _pending.Values.OrderBy(device => device.Level).FirstOrDefault();
+        var kind = BatteryAlert.Low;
+        if (alert is null)
+        {
+            alert = _full.Values.FirstOrDefault();
+            kind = BatteryAlert.Full;
+        }
+        if (alert is null)
+        {
+            alert = _connections.Values.FirstOrDefault();
+            kind = BatteryAlert.Connection;
+        }
+        if (alert is null || !_showAlert(alert, kind)) return;
         _pending.Remove(alert.Identity);
-        if (_pending.Count > 0) _nextAlert.Start();
+        _full.Remove(alert.Identity);
+        _connections.Remove(alert.Identity);
+        if (_pending.Count > 0 || _full.Count > 0 || _connections.Count > 0) _nextAlert.Start();
     }
 
     private void UpdateStatus(string status)
