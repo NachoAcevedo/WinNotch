@@ -199,7 +199,19 @@ public class MediaService : IDisposable
             var timeline = _session.GetTimelineProperties();
             if (timeline == null) return;
 
-            _basePosition = timeline.Position;
+            // Players report Position as of LastUpdatedTime, which can be several seconds old.
+            // Advance it to "now" while playing, or every resync snaps the bar backwards.
+            var position = timeline.Position;
+            if (MediaInfo.IsPlaying)
+            {
+                var age = DateTimeOffset.UtcNow - timeline.LastUpdatedTime;
+                if (age > TimeSpan.Zero && age < TimeSpan.FromHours(1))
+                    position += age;
+            }
+            if (timeline.EndTime > TimeSpan.Zero && position > timeline.EndTime)
+                position = timeline.EndTime;
+
+            _basePosition = position;
             MediaInfo.Position = _basePosition;
             MediaInfo.Duration = timeline.EndTime;
             _lastTimelineUpdate = DateTime.UtcNow;
