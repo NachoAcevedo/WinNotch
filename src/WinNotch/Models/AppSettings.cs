@@ -88,6 +88,7 @@ public class AppSettings
     public bool ShowBatteryCard { get; set; } = true;
     public bool ShowFiles { get; set; } = true;
     public bool AlwaysShowMinimum { get; set; } = false;
+    public bool GamingMode { get; set; } = false;
 
     // Battery
     public bool ShowBattery { get; set; } = true;

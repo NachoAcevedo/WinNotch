@@ -121,6 +121,14 @@
                            Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,0,4"
                            TextWrapping="Wrap"/>
 
+                <Grid Height="32" Margin="0,2">
+                    <TextBlock Text="Modo gaming" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="GamingModeCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+                <TextBlock Text="En pantalla completa (juegos, videos, presentaciones) el notch se oculta. Apretá Esc para que aparezca y hacé clic para abrirlo; si no lo usás, se oculta al minuto."
+                           Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,0,4"
+                           TextWrapping="Wrap"/>
+
                 <!-- Cards: on/off for every card. Their options live in their own sections after Widgets. -->
                 <TextBlock Text="Tarjetas" Style="{StaticResource SectionHeader}"/>
 

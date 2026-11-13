@@ -320,6 +320,12 @@ public sealed class CalendarAccountsPlugin : PluginBase
         }
 
         string detail = $"Ahora · {ev.Start:HH:mm} – {ev.End:HH:mm}";
+        // Por reflexión los parámetros opcionales (ej. accent) no se completan solos:
+        // se pasa uno por parámetro, y los que sobran van en null (su valor por defecto).
+        var args = new object?[showFeedback.GetParameters().Length];
+        args[0] = CalendarGlyph;
+        args[1] = ev.Title;
+        args[2] = detail;
         foreach (Window window in Application.Current.Windows)
         {
             foreach (var field in window.GetType().GetFields(flags))
@@ -329,7 +335,7 @@ public sealed class CalendarAccountsPlugin : PluginBase
                     continue;
                 }
 
-                showFeedback.Invoke(hud, new object[] { CalendarGlyph, ev.Title, detail });
+                showFeedback.Invoke(hud, args);
                 if (timerField.GetValue(hud) is DispatcherTimer timer)
                 {
                     var original = timer.Interval;

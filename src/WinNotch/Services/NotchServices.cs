@@ -22,6 +22,7 @@ public sealed class NotchServices : IDisposable
     public ShelfService Shelf { get; } = new();
     public FullscreenService Fullscreen { get; } = new();
     public CapsLockService CapsLock { get; } = new();
+    public EscapeKeyService EscapeKey { get; } = new();
     public MediaFeedbackService MediaFeedback { get; } = new();
     public WebcamService Webcam { get; } = new();
     public LyricsService Lyrics { get; } = new();
@@ -50,11 +51,13 @@ public sealed class NotchServices : IDisposable
         Calendar.Initialize();
         Webcam.SetTargetFps(settings.WebcamFps);
         Fullscreen.Start();
+        EscapeKey.Start();
     }
 
     public void Dispose()
     {
         CapsLock.Dispose();
+        EscapeKey.Dispose();
         MediaFeedback.Dispose();
         AudioCapture.Dispose();
         Media.Dispose();

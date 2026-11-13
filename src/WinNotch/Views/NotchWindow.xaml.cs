@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using WinNotch.Helpers;
 using WinNotch.Models;
@@ -72,9 +73,9 @@ public partial class NotchWindow : Window
         UpdateNotchVisuals();
     }
     private double ClosedWidth => _lyricsStripShown ? LyricsStripWidth : _settings.AlwaysShowMinimum ? 96 : NotchConstants.ClosedWidth;
-    private double ClosedHeight => _lyricsStripShown ? LyricsStripHeight : _settings.AlwaysShowMinimum ? 12 : NotchConstants.ClosedHeight;
+    private double ClosedHeight => _lyricsStripShown ? LyricsStripHeight : _settings.AlwaysShowMinimum ? 10 : NotchConstants.ClosedHeight;
 
-    // Lyrics with the minimum notch: while music plays, the 96x12 bar grows to fit one line.
+    // Lyrics with the minimum notch: while music plays, the 96x10 bar grows to fit one line.
     // Not in fullscreen, so games and videos keep only the bar.
     private const double LyricsStripWidth = 360;
     private const double LyricsStripHeight = 30;
@@ -137,19 +138,109 @@ public partial class NotchWindow : Window
     private bool FullscreenOnThisMonitor => _fullscreenService.IsFullscreen &&
         _fullscreenService.FullscreenMonitor == ScreenHelper.GetMonitorHandle(this);
 
+    // Gaming mode: with a fullscreen app on this monitor the notch is hidden and
+    // hover can't invoke it. Esc pops it up; from there only a click opens it,
+    // otherwise it hides again after GamingRevealTimeout.
+    private static readonly TimeSpan GamingRevealTimeout = TimeSpan.FromMinutes(1);
+    private bool _gamingRevealed;
+    private DispatcherTimer? _gamingHideTimer;
+    private bool _notchShown = true;
+
+    private bool GamingActive => _settings.GamingMode && FullscreenOnThisMonitor;
+
     private void ApplyFullscreenVisibility(bool enteringFullscreen = false)
     {
         bool fullscreen = FullscreenOnThisMonitor;
-        bool hidden = fullscreen && !_settings.AlwaysShowMinimum;
-        NotchCanvas.Opacity = hidden ? 0 : 1;
-        IsHitTestVisible = !hidden;
-        if (_settings.AlwaysShowMinimum)
+        bool gaming = GamingActive;
+        if (!gaming && _gamingRevealed)
         {
-            if (enteringFullscreen && !_isMouseOverNotch) TransitionToClose();
+            _gamingRevealed = false;
+            _gamingHideTimer?.Stop();
+        }
+        bool hidden = gaming ? !_gamingRevealed : fullscreen && !_settings.AlwaysShowMinimum;
+        SetNotchShown(!hidden, animate: false);
+        if (gaming)
+        {
+            if (enteringFullscreen && !_isMouseOverNotch && !_gamingRevealed) TransitionToClose();
+        }
+        else if (_settings.AlwaysShowMinimum && enteringFullscreen && !_isMouseOverNotch)
+        {
+            TransitionToClose();
+        }
+        if (_settings.AlwaysShowMinimum || _gamingRevealed)
+        {
             Topmost = true;
             WindowHelper.KeepAbove(this);
         }
         RefreshLyricsStrip();
+    }
+
+    private void OnGamingEscape()
+    {
+        if (!GamingActive || _vm.NotchState != NotchState.Closed) return;
+        _gamingRevealed = true;
+        if (_gamingHideTimer == null)
+        {
+            _gamingHideTimer = new DispatcherTimer { Interval = GamingRevealTimeout };
+            _gamingHideTimer.Tick += (_, _) =>
+            {
+                _gamingHideTimer.Stop();
+                if (_vm.NotchState != NotchState.Open) EndGamingReveal();
+            };
+        }
+        _gamingHideTimer.Stop();
+        _gamingHideTimer.Start();
+        Topmost = true;
+        WindowHelper.KeepAbove(this);
+        SetNotchShown(true, animate: true);
+    }
+
+    private void EndGamingReveal()
+    {
+        _gamingHideTimer?.Stop();
+        if (!_gamingRevealed) return;
+        _gamingRevealed = false;
+        if (GamingActive) SetNotchShown(false, animate: true);
+    }
+
+    /// <summary>Shows or hides the whole notch; animated = popup in / shrink out.</summary>
+    private void SetNotchShown(bool shown, bool animate)
+    {
+        if (shown == _notchShown) return;
+        _notchShown = shown;
+        IsHitTestVisible = shown;
+
+        if (NotchCanvas.RenderTransform is not ScaleTransform scale)
+        {
+            scale = new ScaleTransform(1, 1);
+            NotchCanvas.RenderTransform = scale;
+        }
+        NotchCanvas.RenderTransformOrigin = _dock switch
+        {
+            NotchDock.Left => new Point(0, 0.5),
+            NotchDock.Right => new Point(1, 0.5),
+            _ => new Point(0.5, 0)
+        };
+
+        if (!animate)
+        {
+            NotchCanvas.BeginAnimation(OpacityProperty, null);
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            NotchCanvas.Opacity = shown ? 1 : 0;
+            scale.ScaleX = scale.ScaleY = 1;
+            return;
+        }
+
+        var scaleTime = TimeSpan.FromMilliseconds(shown ? 460 : 220);
+        IEasingFunction ease = shown
+            ? new ElasticEase { Oscillations = 1, Springiness = 6, EasingMode = EasingMode.EaseOut }
+            : new CubicEase { EasingMode = EasingMode.EaseIn };
+        var scaleAnim = new DoubleAnimation(shown ? 0.3 : 1, shown ? 1 : 0.5, scaleTime) { EasingFunction = ease };
+        var fadeAnim = new DoubleAnimation(shown ? 0 : 1, shown ? 1 : 0, TimeSpan.FromMilliseconds(shown ? 160 : 220));
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
+        NotchCanvas.BeginAnimation(OpacityProperty, fadeAnim);
     }
 
     private void OnCardSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -502,6 +593,7 @@ public partial class NotchWindow : Window
             });
         };
         _fullscreenService.ForegroundChanged += () => Dispatcher.Invoke(() => ApplyFullscreenVisibility(enteringFullscreen: true));
+        _services.EscapeKey.Pressed += OnGamingEscape;
 
         HudOverlay.HudShown += OnHudPresentationChanged;
         VerticalHudOverlay.HudShown += OnHudPresentationChanged;
@@ -1236,6 +1328,7 @@ public partial class NotchWindow : Window
     {
         HudOverlay.Dismiss();
         VerticalHudOverlay.Dismiss();
+        _gamingHideTimer?.Stop();
         if (_vm.NotchState == NotchState.Open) return;
         _vm.Open();
         NotifyPluginsStateChanged(NotchState.Open);
@@ -1335,6 +1428,8 @@ public partial class NotchWindow : Window
         _shadowOpacitySpring.AnimateTo(ClosedShadowOpacity, _currentShadowOpacity);
         _contentOpacitySpring.AnimateTo(0.0, _currentContentOpacity);
         if (HasActiveHud) RefreshOverlayPresentation();
+        // Gaming mode: once used, the notch goes back into hiding until the next Esc.
+        EndGamingReveal();
     }
 
     #endregion
@@ -1350,6 +1445,9 @@ public partial class NotchWindow : Window
         if (_vm.NotchState == NotchState.Closed)
         {
             _hoverOpenTimer?.Stop();
+
+            // Gaming mode: hovering never opens it, only a click does.
+            if (GamingActive) return;
 
             if (_settings.HoverMode == HoverMode.HoverPeekClickOpen && !_settings.AlwaysShowMinimum)
             {

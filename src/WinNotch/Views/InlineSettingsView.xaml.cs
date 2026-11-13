@@ -48,6 +48,7 @@ public partial class InlineSettingsView : System.Windows.Controls.UserControl
         ShowBatteryCardCheck.IsChecked = settings.ShowBatteryCard;
         ShowFilesCheck.IsChecked = settings.ShowFiles;
         AlwaysShowMinimumCheck.IsChecked = settings.AlwaysShowMinimum;
+        GamingModeCheck.IsChecked = settings.GamingMode;
         ShowWebcamCheck.IsChecked = settings.ShowWebcam;
         WebcamFpsSlider.Value = settings.WebcamFps;
         WebcamFpsLabel.Text = $"{settings.WebcamFps}";
@@ -108,6 +109,7 @@ public partial class InlineSettingsView : System.Windows.Controls.UserControl
         _settings.ShowBatteryCard = ShowBatteryCardCheck.IsChecked == true;
         _settings.ShowFiles = ShowFilesCheck.IsChecked == true;
         _settings.AlwaysShowMinimum = AlwaysShowMinimumCheck.IsChecked == true;
+        _settings.GamingMode = GamingModeCheck.IsChecked == true;
         _settings.ShowWebcam = ShowWebcamCheck.IsChecked == true;
         _settings.ShowOnAllScreens = ShowOnAllScreensCheck.IsChecked == true;
         _settings.SyncIslandsOpenState = SyncIslandsCheck.IsChecked == true;
