@@ -113,6 +113,9 @@
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
 
+                <!-- Better UI: notch behavior tweaks (minimum notch, gaming mode). -->
+                <TextBlock Text="Better UI" Style="{StaticResource SectionHeader}"/>
+
                 <Grid Height="32" Margin="0,2">
                     <TextBlock Text="Notch mínimo siempre visible" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="AlwaysShowMinimumCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
