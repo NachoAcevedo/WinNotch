@@ -68,6 +68,8 @@ public class AppSettings
     // Music
     public bool ShowMusicControls { get; set; } = true;
     public bool ShowVisualizer { get; set; } = true;
+    /// <summary>Synced lyrics (LRCLIB) in the closed notch; toggled from the Media card.</summary>
+    public bool ShowLyrics { get; set; } = false;
 
     // System notices (media, volume, brightness, Caps Lock) are part of the notch and always on.
     [JsonIgnore] public bool ShowMusicFeedback => true;

@@ -66,6 +66,7 @@ public class MediaService : IDisposable
         }
 
         _session = session;
+        _requestedRepeat = null;
 
         if (_session != null)
         {
@@ -180,14 +181,38 @@ public class MediaService : IDisposable
 
             MediaInfo.IsShuffle = info.IsShuffleActive ?? false;
 
-            MediaInfo.RepeatMode = info.AutoRepeatMode switch
+            int reported = info.AutoRepeatMode switch
             {
                 Windows.Media.MediaPlaybackAutoRepeatMode.List => 1,
                 Windows.Media.MediaPlaybackAutoRepeatMode.Track => 2,
                 _ => 0
             };
+            MediaInfo.RepeatMode = ResolveRepeatMode(reported);
         }
         catch { }
+    }
+
+    // Repeat as requested from WinNotch. Players report changes late (Spotify: 1-2 s), and
+    // Spotify reports "repeat one" as "repeat all": trusting the report alone kept the
+    // button cycling between all and one, never reaching off.
+    private int? _requestedRepeat;
+    private DateTime _requestedRepeatAt;
+    private static readonly TimeSpan RepeatReportDelay = TimeSpan.FromSeconds(3);
+
+    private int ResolveRepeatMode(int reported)
+    {
+        if (_requestedRepeat is not int requested) return reported;
+        if (reported == requested) return requested;
+
+        // Still waiting for the player to catch up with the request.
+        if (DateTime.UtcNow - _requestedRepeatAt < RepeatReportDelay) return requested;
+
+        // "Repeat one" that the player reports as "repeat all".
+        if (requested == 2 && reported == 1) return requested;
+
+        // Changed from the player itself: trust the report again.
+        _requestedRepeat = null;
+        return reported;
     }
 
     private void UpdateTimeline()
@@ -272,13 +297,24 @@ public class MediaService : IDisposable
         if (_session == null) return;
         try
         {
-            var next = MediaInfo.RepeatMode switch
+            int nextMode = (MediaInfo.RepeatMode + 1) % 3;
+            var next = nextMode switch
             {
-                0 => Windows.Media.MediaPlaybackAutoRepeatMode.List,
-                1 => Windows.Media.MediaPlaybackAutoRepeatMode.Track,
+                1 => Windows.Media.MediaPlaybackAutoRepeatMode.List,
+                2 => Windows.Media.MediaPlaybackAutoRepeatMode.Track,
                 _ => Windows.Media.MediaPlaybackAutoRepeatMode.None
             };
-            await _session.TryChangeAutoRepeatModeAsync(next);
+
+            // Show the new mode right away; late reports from the player must not undo it.
+            _requestedRepeat = nextMode;
+            _requestedRepeatAt = DateTime.UtcNow;
+            MediaInfo.RepeatMode = nextMode;
+
+            if (!await _session.TryChangeAutoRepeatModeAsync(next))
+            {
+                _requestedRepeat = null;
+                UpdatePlaybackInfo();
+            }
         }
         catch { }
     }

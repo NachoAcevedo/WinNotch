@@ -209,17 +209,7 @@
                             <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="8,4,8,4"/>
                             <views:WebcamView x:Name="WebcamMirror"/>
                         </StackPanel>
-
-                        <!-- Gear button (right edge, vertically centered) -->
-                        <Button x:Name="SettingsGearButton"
-                                Grid.Column="4"
-                                Click="OnSettingsGearClick"
-                                Style="{StaticResource IconButton}"
-                                Width="24" Height="24"
-                                VerticalAlignment="Top" Margin="4,0,0,0"
-                                ToolTip="Settings">
-                            <TextBlock FontFamily="Segoe Fluent Icons" Text="&#xE713;" FontSize="13" Foreground="{DynamicResource TextSubtleBrush}"/>
-                        </Button>
+                        <!-- Settings open only from the tray icon. -->
                     </Grid>
 
                     <!-- File shelf (visible when files are shelved) -->
@@ -360,15 +350,6 @@
                         <!-- Bottom -->
                         <Border Height="1" Background="{DynamicResource SeparatorBrush}"
                                 Margin="6,14,6,10"/>
-
-                        <Button Click="OnSideSettingsClick"
-                                Style="{StaticResource IconButton}"
-                                Width="24" Height="24"
-                                HorizontalAlignment="Center" ToolTip="Settings"
-                                Margin="0,0,0,8">
-                            <TextBlock FontFamily="Segoe Fluent Icons" Text="&#xE713;" FontSize="13"
-                                       Foreground="{DynamicResource TextSubtleBrush}"/>
-                        </Button>
                     </StackPanel>
 
                     <!-- Settings panel for vertical mode (expands to the right) -->

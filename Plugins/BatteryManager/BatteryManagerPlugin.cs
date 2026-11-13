@@ -40,9 +40,10 @@ public sealed class BatteryManagerPlugin : CardPluginBase
         return base.ShutdownAsync();
     }
 
-    private BatteryMonitor GetMonitor() => _monitor ??= new BatteryMonitor(device =>
-        Context?.MainWindow is NotchWindow window &&
-        window.TryShowDeviceBattery(device.Name, device.Level!.Value, device.Band == BatteryBand.Critical));
+    private BatteryMonitor GetMonitor() => _monitor ??= new BatteryMonitor(
+        device => Context?.MainWindow is NotchWindow window &&
+            window.TryShowDeviceBattery(device.Name, device.Level!.Value, device.Band == BatteryBand.Critical),
+        message => Context?.Log("BatteryManager: " + message, PluginLogLevel.Debug));
 }
 
 internal enum BatteryBand { Normal, Low, Critical }

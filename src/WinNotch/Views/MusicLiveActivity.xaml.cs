@@ -11,6 +11,36 @@ public partial class MusicLiveActivity : UserControl
     private MediaService? _mediaService;
     private AudioCaptureService? _audioCaptureService;
     private bool _userEnabled = true;
+    private string _title = string.Empty;
+    private string _lyricLine = string.Empty;
+    private bool _lyricsLoading;
+
+    /// <summary>
+    /// Current synced lyric line; empty shows the song title instead. While the lyrics of a
+    /// new song are loading nothing is shown, so the song-change notice comes before the lyrics.
+    /// </summary>
+    public void SetLyricLine(string line, bool loading = false)
+    {
+        _lyricLine = line ?? string.Empty;
+        _lyricsLoading = loading;
+        ShowText();
+    }
+
+    // A lyric line gets a fixed width: the closed notch is sized to its content, so a
+    // free-width line would overflow its edges and make the notch jump on every line.
+    private const double LyricWidth = 240;
+
+    private void ShowText()
+    {
+        bool lyric = _lyricLine.Length > 0 || _lyricsLoading;
+        CompactTitle.Text = _lyricsLoading ? string.Empty : lyric ? _lyricLine : _title;
+        CompactTitle.SetResourceReference(TextBlock.ForegroundProperty, lyric ? "TextPrimaryBrush" : "TextSecondaryBrush");
+        CompactTitle.FontWeight = lyric ? FontWeights.Bold : FontWeights.Normal;
+        CompactTitle.FontSize = lyric ? 12 : 11;
+        CompactTitle.Width = lyric ? LyricWidth : double.NaN;
+        CompactTitle.TextAlignment = lyric ? TextAlignment.Center : TextAlignment.Left;
+        CompactArtBox.Visibility = lyric ? Visibility.Collapsed : Visibility.Visible;
+    }
 
     /// <summary>Reflects the ShowMusicControls setting; gates self-show on media changes.</summary>
     public bool UserEnabled
@@ -64,7 +94,10 @@ public partial class MusicLiveActivity : UserControl
             CompactAlbumArt.Source = info.AlbumArt;
 
         if (propertyName == null || propertyName == nameof(info.Title))
-            CompactTitle.Text = info.Title;
+        {
+            _title = info.Title;
+            ShowText();
+        }
 
         if (propertyName == null || propertyName == nameof(info.DominantColor))
         {

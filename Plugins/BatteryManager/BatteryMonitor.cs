@@ -19,11 +19,13 @@ internal sealed class BatteryMonitor
     private readonly Dictionary<string, BatteryBand> _bands = new();
     private readonly Dictionary<string, DeviceBattery> _pending = new();
     private readonly Func<DeviceBattery, bool> _showAlert;
+    private readonly Action<string> _log;
     private CancellationTokenSource? _scan;
 
-    public BatteryMonitor(Func<DeviceBattery, bool> showAlert)
+    public BatteryMonitor(Func<DeviceBattery, bool> showAlert, Action<string> log)
     {
         _showAlert = showAlert;
+        _log = log;
         _poll.Tick += async (_, _) => await RefreshAsync();
         _nextAlert.Tick += (_, _) => ShowNextAlert();
         _startupRetry.Tick += async (_, _) =>
@@ -109,16 +111,19 @@ internal sealed class BatteryMonitor
         catch (OperationCanceledException)
         {
             if (!scan.IsCancellationRequested) UpdateStatus("La lectura tardó demasiado.");
+            _log("lectura cancelada o vencida");
         }
         catch (Exception error) when (error is IOException or JsonException or System.ComponentModel.Win32Exception)
         {
             UpdateStatus("No se pudieron leer las baterías.");
+            _log("lectura fallida: " + error.Message);
         }
         finally { _scan = null; }
     }
 
     internal void Apply(BatterySnapshot snapshot)
     {
+        _log($"lectura: {snapshot.Devices.Length} dispositivos, {snapshot.Failures} lectores sin respuesta");
         if (snapshot.Devices.Length > 0) _foundAny = true;
         else if (!_foundAny && ++_emptyScans < StartupRetries)
         {

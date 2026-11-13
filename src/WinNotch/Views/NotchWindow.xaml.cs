@@ -71,8 +71,46 @@ public partial class NotchWindow : Window
         _heightSpring.AnimateTo(height, _currentHeight);
         UpdateNotchVisuals();
     }
-    private double ClosedWidth => _settings.AlwaysShowMinimum ? 96 : NotchConstants.ClosedWidth;
-    private double ClosedHeight => _settings.AlwaysShowMinimum ? 12 : NotchConstants.ClosedHeight;
+    private double ClosedWidth => _lyricsStripShown ? LyricsStripWidth : _settings.AlwaysShowMinimum ? 96 : NotchConstants.ClosedWidth;
+    private double ClosedHeight => _lyricsStripShown ? LyricsStripHeight : _settings.AlwaysShowMinimum ? 12 : NotchConstants.ClosedHeight;
+
+    // Lyrics with the minimum notch: while music plays, the 96x12 bar grows to fit one line.
+    // Not in fullscreen, so games and videos keep only the bar.
+    private const double LyricsStripWidth = 360;
+    private const double LyricsStripHeight = 30;
+    private bool _lyricsStripShown;
+    private bool LyricsStripActive =>
+        _settings.AlwaysShowMinimum && _settings.ShowLyrics && _settings.ShowMusicControls &&
+        _dock == NotchDock.Top && !FullscreenOnThisMonitor &&
+        _mediaService.MediaInfo is { HasMedia: true, IsPlaying: true };
+
+    /// <summary>Re-sizes the closed notch when the lyrics strip turns on or off.</summary>
+    private void RefreshLyricsStrip()
+    {
+        bool active = LyricsStripActive;
+        if (active == _lyricsStripShown) return;
+        _lyricsStripShown = active;
+        if (_vm.NotchState == NotchState.Closed && !HasActiveHud)
+        {
+            _widthSpring.AnimateTo(ClosedWidth, _currentWidth);
+            _heightSpring.AnimateTo(ClosedHeight, _currentHeight);
+        }
+        UpdateNotchVisuals();
+    }
+
+    private void ToggleLyrics()
+    {
+        _settings.ShowLyrics = !_settings.ShowLyrics;
+        _settings.Save();
+        ApplySettings(_settings);
+        SettingsUpdatedByUser?.Invoke(_settings);
+    }
+
+    private void ShowLyricLine()
+    {
+        bool on = _settings.ShowLyrics && _settings.ShowMusicControls;
+        LiveActivity.SetLyricLine(on ? _services.Lyrics.CurrentLine : string.Empty, on && _services.Lyrics.IsLoading);
+    }
     private readonly Dictionary<string, TabItem> _pluginCardTabs = new();
     private ShelfView? _shelfCardView;
     private bool CanReceiveShelfDrop => _dock == NotchDock.Top && IsCardEnabled("files") && _shelfCardView != null;
@@ -111,6 +149,7 @@ public partial class NotchWindow : Window
             Topmost = true;
             WindowHelper.KeepAbove(this);
         }
+        RefreshLyricsStrip();
     }
 
     private void OnCardSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -361,6 +400,10 @@ public partial class NotchWindow : Window
         // Bind views to services
         MusicPlayer.Bind(_mediaService);
         LiveActivity.Bind(_mediaService, _audioCaptureService);
+        MusicPlayer.LyricsToggleRequested += ToggleLyrics;
+        MusicPlayer.SetLyricsEnabled(_settings.ShowLyrics);
+        _services.Lyrics.Changed += ShowLyricLine;
+        ShowLyricLine();
 
         // Inline settings
         InlineSettings.SettingsChanged += s =>
@@ -666,6 +709,7 @@ public partial class NotchWindow : Window
         LiveActivity.Visibility = hasMusic && !HasActiveHud ? Visibility.Visible : Visibility.Collapsed;
         ClockWidget.Visibility = hasMusic || HasActiveHud ? Visibility.Collapsed : Visibility.Visible;
         BatteryIndicator.Suppressed = HasActiveHud;
+        RefreshLyricsStrip();
     }
 
     #region Vertical Side Content
@@ -752,15 +796,6 @@ public partial class NotchWindow : Window
         await _mediaService.SeekToAsync(percent);
     }
 
-    private void OnSideSettingsClick(object sender, RoutedEventArgs e)
-    {
-        // In vertical view, expand settings on the right side dynamically
-        if (_isSettingsExpanded)
-            CollapseSettings();
-        else
-            ExpandSettings();
-    }
-
     #endregion
 
     public void OpenSettings()
@@ -770,14 +805,6 @@ public partial class NotchWindow : Window
             TransitionToOpen();
 
         ExpandSettings();
-    }
-
-    private void OnSettingsGearClick(object sender, RoutedEventArgs e)
-    {
-        if (_isSettingsExpanded)
-            CollapseSettings();
-        else
-            ExpandSettings();
     }
 
     private void ExpandSettings()
@@ -1133,6 +1160,13 @@ public partial class NotchWindow : Window
         ContentGrid.Width = contentWidth;
         ContentGrid.Height = contentHeight;
 
+        // The lyrics strip is a single line taller than the space between the notch curves:
+        // clipping it there cut the text in half. Opening the notch clips again.
+        if (_lyricsStripShown && _vm.NotchState == NotchState.Closed)
+            ContentGrid.ClipToBounds = false;
+        else if (_vm.NotchState == NotchState.Open)
+            ContentGrid.ClipToBounds = true;
+
         // Content opacity — switch between horizontal and vertical panels
         if (_dock != NotchDock.Top)
         {
@@ -1150,7 +1184,7 @@ public partial class NotchWindow : Window
         }
 
         // Invisible layers must not swallow clicks (WPF hit-tests opacity-0 elements)
-        if (_settings.AlwaysShowMinimum)
+        if (_settings.AlwaysShowMinimum && !_lyricsStripShown)
         {
             ClosedContent.Opacity = 0;
             VerticalClosedContent.Opacity = 0;
@@ -1707,12 +1741,7 @@ public partial class NotchWindow : Window
     {
         var menu = CreateStyledContextMenu();
 
-        var settingsItem = new System.Windows.Controls.MenuItem { Header = "Settings" };
-        settingsItem.Click += (_, _) => OpenSettings();
-        menu.Items.Add(settingsItem);
-
-        menu.Items.Add(new System.Windows.Controls.Separator());
-
+        // Settings open only from the tray icon.
         var quitItem = new System.Windows.Controls.MenuItem { Header = "Quit" };
         quitItem.Click += (_, _) => Application.Current.Shutdown();
         menu.Items.Add(quitItem);
@@ -1896,6 +1925,8 @@ public partial class NotchWindow : Window
             entry.Value.Visibility = ShouldShowCard(entry.Key) ? Visibility.Visible : Visibility.Collapsed;
         EnsureVisibleCardSelected();
         CompactVisualizer_SetVisible(settings.ShowVisualizer);
+        MusicPlayer.SetLyricsEnabled(settings.ShowLyrics);
+        ShowLyricLine();
         UpdateClosedContentVisibility();
 
         // HUD gates (external volume/brightness changes must respect these too)
@@ -2103,7 +2134,6 @@ public partial class NotchWindow : Window
     {
         _incomingFileDrag = active;
         CardTabs.Tag = active ? "ShelfDrop" : null;
-        SettingsGearButton.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
         PluginOpenPanel.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
         if (active)
             _shelfCardView?.ShowDropZone();

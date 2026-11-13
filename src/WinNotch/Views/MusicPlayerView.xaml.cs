@@ -12,10 +12,19 @@ public partial class MusicPlayerView : UserControl
 {
     private MediaService? _mediaService;
 
+    /// <summary>The user pressed the lyrics button; the window owns the setting.</summary>
+    public event Action? LyricsToggleRequested;
+
     public MusicPlayerView()
     {
         InitializeComponent();
     }
+
+    /// <summary>Highlights the lyrics button while lyrics are on.</summary>
+    public void SetLyricsEnabled(bool enabled) =>
+        System.Windows.Controls.Primitives.Selector.SetIsSelected(LyricsButton, enabled);
+
+    private void OnLyricsClick(object sender, RoutedEventArgs e) => LyricsToggleRequested?.Invoke();
 
     public void Bind(MediaService mediaService)
     {
