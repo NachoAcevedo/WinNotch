@@ -26,7 +26,7 @@ public sealed class WeatherCardView : UserControl
 
     public WeatherCardView()
     {
-        var panel = new StackPanel { Margin = new Thickness(4, 3, 4, 0) };
+        var panel = new StackPanel();
         var current = new DockPanel();
         var openWeather = new Button { Content = _icon, ToolTip = "Abrir el pronóstico", Padding = new Thickness(3), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
         System.Windows.Automation.AutomationProperties.SetName(openWeather, "Abrir el pronóstico");
