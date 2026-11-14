@@ -486,7 +486,7 @@ public sealed class NectarThemePlugin : PluginBase
     /// </summary>
     private static void HookTabDistribution(Border strip)
     {
-        if (strip.TemplatedParent is not TabControl tabs)
+        if (strip.TemplatedParent is not TabControl tabs || tabs.Name == "CardTabs")
         {
             return;
         }

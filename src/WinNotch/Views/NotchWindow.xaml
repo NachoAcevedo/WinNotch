@@ -27,7 +27,7 @@
                     <Setter.Value>
                         <ControlTemplate TargetType="TabItem">
                             <Border x:Name="TabBackground" CornerRadius="{StaticResource InterfaceControlRadius}" Margin="0,0,2,0" Padding="{TemplateBinding Padding}" Background="Transparent" BorderThickness="1" BorderBrush="Transparent">
-                                <ContentPresenter ContentSource="Header"/>
+                                <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="Header" Value="{x:Null}">
@@ -174,10 +174,10 @@
                                 <ControlTemplate TargetType="TabControl">
                                     <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="{StaticResource InterfacePanelRadius}" Padding="4">
                                         <DockPanel LastChildFill="True">
-                                            <Border x:Name="CardHeader" DockPanel.Dock="Top" Padding="0,0,0,2">
-                                                <TabPanel IsItemsHost="True"/>
+                                            <Border x:Name="CardHeader" DockPanel.Dock="Top" Padding="0,0,0,4">
+                                                <UniformGrid IsItemsHost="True" Rows="1"/>
                                             </Border>
-                                            <Border x:Name="CardBody" Background="Transparent" Padding="3,2,3,3" ClipToBounds="True">
+                                            <Border x:Name="CardBody" Background="Transparent" Padding="6,3,6,4" ClipToBounds="True">
                                                 <ContentPresenter ContentSource="SelectedContent"/>
                                             </Border>
                                         </DockPanel>
