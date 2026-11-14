@@ -36,6 +36,8 @@ public sealed class SettingsLayoutPlugin : PluginBase
 
         foreach (var view in views)
         {
+            // Recent WinNotch builds already provide the layout natively.
+            if (view.FindName("ShowBatteryCardCheck") is System.Windows.Controls.CheckBox) continue;
             foreach (var name in new[] { "AlwaysShowMinimumCheck", "ShowShadowCheck", "CapsLockFeedbackCheck", "VolumeHudCheck", "BrightnessHudCheck" })
             {
                 Context?.Log("Ajustes reordenados: " + SettingsDom.DescribeParents(view, name), PluginLogLevel.Debug);

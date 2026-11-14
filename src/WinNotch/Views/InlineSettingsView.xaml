@@ -13,7 +13,7 @@
             </ResourceDictionary.MergedDictionaries>
 
             <Style x:Key="SectionHeader" TargetType="TextBlock" BasedOn="{StaticResource InterfaceSection}">
-                <Setter Property="Margin" Value="0,14,0,5"/>
+                <Setter Property="Margin" Value="0,19,0,7"/>
             </Style>
             <Style x:Key="SettingLabel" TargetType="TextBlock">
                 <Setter Property="Foreground" Value="{DynamicResource SettingLabelBrush}"/>
@@ -52,7 +52,7 @@
                 <!-- General -->
                 <TextBlock Text="General" Style="{StaticResource SectionHeader}"/>
 
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Iniciar con Windows" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="StartOnBootCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -96,17 +96,17 @@
                     </Grid>
                 </Border>
 
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Seguir el tema de Windows" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="AdaptToWindowsThemeCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnAdaptThemeChanged" Unchecked="OnAdaptThemeChanged"/>
                 </Grid>
                 <TextBlock Text="Usa el tema, el acento y el contraste de Windows."
-                           Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,0,4"
+                           Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,48,6"
                            TextWrapping="Wrap"/>
 
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Mostrar sombra" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowShadowCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -116,60 +116,60 @@
                 <!-- Better UI: notch behavior tweaks (minimum notch, gaming mode). -->
                 <TextBlock Text="Better UI" Style="{StaticResource SectionHeader}"/>
 
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Notch mínimo siempre visible" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="AlwaysShowMinimumCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
                 <TextBlock Text="Visible sobre ventanas maximizadas y juegos. Pasá el mouse para abrirlo."
-                           Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,0,4"
+                           Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,48,6"
                            TextWrapping="Wrap"/>
 
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Modo gaming" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="GamingModeCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
                 <TextBlock Text="En pantalla completa (juegos, videos, presentaciones) el notch se oculta. Apretá Esc para que aparezca y hacé clic para abrirlo; si no lo usás, se oculta al minuto."
-                           Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,0,4"
+                           Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,48,6"
                            TextWrapping="Wrap"/>
 
                 <!-- Cards: on/off for every card. Their options live in their own sections after Widgets. -->
                 <TextBlock Text="Tarjetas" Style="{StaticResource SectionHeader}"/>
 
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Media" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowMusicCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Calendario" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowCalendarCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Clima" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowWeatherCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Tareas" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowTasksCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="IA (Codex / Claude)" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowAgentCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Audio" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowAudioCardCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Baterías de dispositivos" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowBatteryCardCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Dock de archivos" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowFilesCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
@@ -177,14 +177,14 @@
                 <!-- Widgets -->
                 <TextBlock Text="Widgets" Style="{StaticResource SectionHeader}"/>
 
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Indicador de batería" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowBatteryCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
 
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Vista de la cámara" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowWebcamCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -215,7 +215,7 @@
                 <StackPanel x:Name="MediaOptionsSection">
                     <TextBlock Text="Media" Style="{StaticResource SectionHeader}"/>
 
-                    <Grid Height="32" Margin="0,2">
+                    <Grid MinHeight="32" Margin="0,3">
                         <TextBlock Text="Visualizador de audio" Style="{StaticResource SettingLabel}"/>
                         <CheckBox x:Name="ShowVisualizerCheck" Style="{StaticResource ToggleSwitch}"
                                   HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -233,40 +233,40 @@
                 <!-- Screens -->
                 <TextBlock Text="Pantallas" Style="{StaticResource SectionHeader}"/>
 
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Reservar espacio arriba" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ReserveSpaceCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
                 <TextBlock Text="Deja espacio para el notch sobre ventanas maximizadas. Las apps a pantalla completa pueden cubrirlo."
-                           Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,0,4"
+                           Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,48,6"
                            TextWrapping="Wrap"/>
 
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Notch en cada pantalla" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowOnAllScreensCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
                 <TextBlock Text="Muestra el notch en cada monitor conectado."
-                           Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,0,4"
+                           Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,48,6"
                            TextWrapping="Wrap"/>
 
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Sincronizar pantallas" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="SyncIslandsCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
                               Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
                 <TextBlock Text="Abre y cierra el notch al mismo tiempo en todos los monitores."
-                           Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,0,4"
+                           Foreground="{DynamicResource TextFaintBrush}" FontSize="9" Margin="0,0,48,6"
                            TextWrapping="Wrap"/>
 
                 <!-- Beta Features -->
                 <TextBlock Text="Funciones beta" Style="{StaticResource SectionHeader}"/>
 
-                <Grid Height="32" Margin="0,2">
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Tema Liquid Glass" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="LiquidGlassCheck" Style="{StaticResource ToggleSwitch}"
                               HorizontalAlignment="Right" VerticalAlignment="Center"
