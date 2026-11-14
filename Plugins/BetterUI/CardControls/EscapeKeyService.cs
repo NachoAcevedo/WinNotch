@@ -1,13 +1,13 @@
 using System.Runtime.InteropServices;
 
-namespace WinNotch.Services;
+namespace PersonalCards;
 
 /// <summary>
 /// Global Esc listener (low-level keyboard hook). Used by gaming mode: while a
 /// fullscreen app runs the notch stays hidden until Esc is pressed.
 /// The key is never swallowed; it still reaches the game.
 /// </summary>
-public sealed class EscapeKeyService : IDisposable
+internal sealed class EscapeKeyService : IDisposable
 {
     private delegate IntPtr KeyboardCallback(int code, IntPtr message, IntPtr data);
     private readonly KeyboardCallback _callback;

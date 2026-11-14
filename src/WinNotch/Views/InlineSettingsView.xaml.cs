@@ -46,6 +46,7 @@ public partial class InlineSettingsView : System.Windows.Controls.UserControl
         ShowAgentCheck.IsChecked = settings.ShowAgent;
         ShowAudioCardCheck.IsChecked = settings.ShowAudioCard;
         ShowBatteryCardCheck.IsChecked = settings.ShowBatteryCard;
+        ShowNotificationsCardCheck.IsChecked = settings.ShowNotificationsCard;
         ShowFilesCheck.IsChecked = settings.ShowFiles;
         AlwaysShowMinimumCheck.IsChecked = settings.AlwaysShowMinimum;
         GamingModeCheck.IsChecked = settings.GamingMode;
@@ -107,6 +108,7 @@ public partial class InlineSettingsView : System.Windows.Controls.UserControl
         _settings.ShowAgent = ShowAgentCheck.IsChecked == true;
         _settings.ShowAudioCard = ShowAudioCardCheck.IsChecked == true;
         _settings.ShowBatteryCard = ShowBatteryCardCheck.IsChecked == true;
+        _settings.ShowNotificationsCard = ShowNotificationsCardCheck.IsChecked == true;
         _settings.ShowFiles = ShowFilesCheck.IsChecked == true;
         _settings.AlwaysShowMinimum = AlwaysShowMinimumCheck.IsChecked == true;
         _settings.GamingMode = GamingModeCheck.IsChecked == true;

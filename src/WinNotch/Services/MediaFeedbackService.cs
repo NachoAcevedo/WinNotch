@@ -15,6 +15,15 @@ public sealed class MediaFeedbackService : IDisposable
     private DateTime _quietUntil;
     private bool _enabled = true;
     public event Action<string, string, string>? Changed;
+    public event Action? TrackNoticePendingChanged;
+    public bool IsTrackNoticePending { get; private set; }
+
+    private void SetTrackNoticePending(bool pending)
+    {
+        if (pending == IsTrackNoticePending) return;
+        IsTrackNoticePending = pending;
+        TrackNoticePendingChanged?.Invoke();
+    }
 
     public MediaFeedbackService() => _timer.Tick += (_, _) => Publish();
     public void Initialize(MediaInfo media)
@@ -28,6 +37,7 @@ public sealed class MediaFeedbackService : IDisposable
     {
         if (_enabled == enabled) return;
         _enabled = enabled;
+        SetTrackNoticePending(false);
         _timer.Stop();
         Snapshot();
     }
@@ -35,6 +45,9 @@ public sealed class MediaFeedbackService : IDisposable
     {
         if (e.PropertyName is not (nameof(MediaInfo.Title) or nameof(MediaInfo.Artist) or nameof(MediaInfo.IsPlaying) or nameof(MediaInfo.HasMedia))) return;
         if (!_enabled) { Snapshot(); return; }
+        if (_media != null && _hadMedia && DateTime.UtcNow >= _quietUntil &&
+            (_media.Title != _title || _media.Artist != _artist))
+            SetTrackNoticePending(true);
         _timer.Stop();
         _timer.Start();
     }
@@ -62,6 +75,7 @@ public sealed class MediaFeedbackService : IDisposable
             Changed?.Invoke(icon, _media.Title, detail);
         }
         Snapshot();
+        SetTrackNoticePending(false);
     }
     public void Dispose()
     {

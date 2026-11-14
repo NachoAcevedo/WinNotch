@@ -29,6 +29,12 @@ Built with `WPF`, `.NET 8`, and `C#`.
 - Plugin Manager and Plugin Browser with online library support
 - Configurable plugins with built-in setup UI
 
+## Which version should I use?
+
+Use this fork if you want the full set of quality-of-life improvements. BetterUI handles the Esc shortcut, while the fork controls how the notch reveals itself and hides again in Gaming mode. The minimum notch, lyrics on the closed notch, and the shared alert layout and transitions also use the fork's window integration. The original plugin API has no equivalent hooks for these behaviors.
+
+The plugin projects contain their own features, such as audio mixing, weather, peripheral battery readings and AI integrations. The builds in this repository target the fork. Its card host provides tab ordering, card sizing and visibility settings. Compatibility with the original WinNotch has not been verified.
+
 ## Build this fork from source
 
 Requirements:
@@ -52,7 +58,7 @@ dotnet publish src/WinNotch/WinNotch.csproj -c Release -r win-x64 --self-contain
 
 | Folder | Features |
 | --- | --- |
-| [BetterUI](Plugins/BetterUI) | Shared card controls, adaptive notch width, settings layout and native flyout hiding. |
+| [BetterUI](Plugins/BetterUI) | Shared card controls, adaptive notch width, settings layout, native flyout hiding and the Gaming mode Esc shortcut. |
 | [NectarTheme](Plugins/NectarTheme) | Nectar colors, typography and styles. |
 | [BetterMedia](Plugins/BetterMedia) | Media tab and playback notifications with album art, title and artist. |
 | [BetterCalendar](Plugins/BetterCalendar) | Calendar events from all classic Outlook accounts. |

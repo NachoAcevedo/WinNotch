@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.22621.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/WinNotch/WinNotch.csproj" Private="false" Condition="'$(WinNotchReferencePath)' == ''" />
+    <Reference Include="WinNotch" HintPath="$(WinNotchReferencePath)" Private="false" Condition="'$(WinNotchReferencePath)' != ''" />
+  </ItemGroup>
+</Project>

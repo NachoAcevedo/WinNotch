@@ -34,6 +34,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="../../Plugins/BetterMedia/LyricsService.cs" Link="Services/LyricsService.cs" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />
     <PackageReference Include="NAudio" Version="2.2.*" />
     <PackageReference Include="System.Management" Version="10.0.6" />

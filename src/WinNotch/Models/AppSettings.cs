@@ -86,6 +86,7 @@ public class AppSettings
     public bool ShowAgent { get; set; } = true;
     public bool ShowAudioCard { get; set; } = true;
     public bool ShowBatteryCard { get; set; } = true;
+    public bool ShowNotificationsCard { get; set; } = true;
     public bool ShowFiles { get; set; } = true;
     public bool AlwaysShowMinimum { get; set; } = false;
     public bool GamingMode { get; set; } = false;

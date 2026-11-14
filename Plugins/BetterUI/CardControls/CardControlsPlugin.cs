@@ -9,6 +9,7 @@ namespace PersonalCards;
 public sealed class CardControlsPlugin : PluginBase
 {
     private static CardControlsPlugin? _active;
+    private readonly EscapeKeyService _escapeKey = new();
     private readonly Dictionary<TabControl, ResourceDictionary> _applied = new();
 
     static CardControlsPlugin()
@@ -33,6 +34,9 @@ public sealed class CardControlsPlugin : PluginBase
         Application.Current.Dispatcher.Invoke(() =>
         {
             _active = this;
+            _escapeKey.Pressed -= RevealForGaming;
+            _escapeKey.Pressed += RevealForGaming;
+            if (RevealWindow != null) _escapeKey.Start();
             foreach (var window in Application.Current.Windows.OfType<NotchWindow>())
                 Apply(window);
         });
@@ -48,6 +52,17 @@ public sealed class CardControlsPlugin : PluginBase
     {
         Application.Current.Dispatcher.Invoke(RemoveStyles);
         return base.ShutdownAsync();
+    }
+
+    // The same plugin can load on upstream builds without the fork's reveal action.
+    private static readonly Action<NotchWindow>? RevealWindow =
+        typeof(NotchWindow).GetMethod("RevealForGaming", Type.EmptyTypes)?.CreateDelegate<Action<NotchWindow>>();
+
+    private static void RevealForGaming()
+    {
+        if (RevealWindow == null) return;
+        foreach (var window in Application.Current.Windows.OfType<NotchWindow>())
+            RevealWindow(window);
     }
 
     private void Apply(NotchWindow window)
@@ -73,6 +88,8 @@ public sealed class CardControlsPlugin : PluginBase
 
     private void RemoveStyles()
     {
+        _escapeKey.Pressed -= RevealForGaming;
+        _escapeKey.Dispose();
         if (ReferenceEquals(_active, this)) _active = null;
         foreach (var (tabs, styles) in _applied)
         {

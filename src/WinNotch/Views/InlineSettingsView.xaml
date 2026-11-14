@@ -170,6 +170,10 @@
                     <CheckBox x:Name="ShowBatteryCardCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>
                 <Grid MinHeight="32" Margin="0,3">
+                    <TextBlock Text="Notifications de dispositivos" Style="{StaticResource SettingLabel}"/>
+                    <CheckBox x:Name="ShowNotificationsCardCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                </Grid>
+                <Grid MinHeight="32" Margin="0,3">
                     <TextBlock Text="Dock de archivos" Style="{StaticResource SettingLabel}"/>
                     <CheckBox x:Name="ShowFilesCheck" Style="{StaticResource ToggleSwitch}" HorizontalAlignment="Right" VerticalAlignment="Center" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
                 </Grid>

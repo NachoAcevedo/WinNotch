@@ -14,4 +14,7 @@
     <Reference Include="WinNotch" HintPath="$(WinNotchReferencePath)" Private="false" Condition="'$(WinNotchReferencePath)' != ''" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="LyricsService.cs" />
+  </ItemGroup>
 </Project>

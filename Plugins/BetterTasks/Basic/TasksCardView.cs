@@ -6,6 +6,8 @@ using WinNotch.Services;
 
 namespace WinNotch.Views;
 
+internal sealed record LocalTaskItem(Guid Id, string Title, bool Done);
+
 public sealed class TasksCardView : UserControl
 {
     private readonly List<LocalTaskItem> _tasks = LocalCards.Read<List<LocalTaskItem>>("tasks.json") ?? new();

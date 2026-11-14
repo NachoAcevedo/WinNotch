@@ -127,7 +127,16 @@ public partial class NotchWindow : Window
     private void ShowLyricLine()
     {
         bool on = _settings.ShowLyrics && _settings.ShowMusicControls;
-        LiveActivity.SetLyricLine(on ? _services.Lyrics.CurrentLine : string.Empty, on && _services.Lyrics.IsLoading);
+        LiveActivity.SetLyricLine(on ? _services.Lyrics.CurrentLine : string.Empty,
+            on && (_services.Lyrics.IsLoading || _services.MediaFeedback.IsTrackNoticePending));
+    }
+
+    private void OnTrackNoticePendingChanged()
+    {
+        if (_services.MediaFeedback.IsTrackNoticePending)
+            ShowLyricLine();
+        else
+            Dispatcher.BeginInvoke(ShowLyricLine);
     }
     private readonly Dictionary<string, TabItem> _pluginCardTabs = new();
     private ShelfView? _shelfCardView;
@@ -141,6 +150,7 @@ public partial class NotchWindow : Window
         "files" => _settings.ShowFiles,
         "eartrumpet" => _settings.ShowAudioCard,
         "batterymanager" => _settings.ShowBatteryCard,
+        "notifications" => _settings.ShowNotificationsCard,
         _ => true
     };
     private bool ShouldShowCard(string key) => IsCardEnabled(key) &&
@@ -203,7 +213,7 @@ public partial class NotchWindow : Window
         }
     }
 
-    private void OnGamingEscape()
+    public void RevealForGaming()
     {
         if (!GamingActive || _vm.NotchState != NotchState.Closed) return;
         _gamingRevealed = true;
@@ -525,6 +535,7 @@ public partial class NotchWindow : Window
         MusicPlayer.LyricsToggleRequested += ToggleLyrics;
         MusicPlayer.SetLyricsEnabled(_settings.ShowLyrics);
         _services.Lyrics.Changed += ShowLyricLine;
+        _services.MediaFeedback.TrackNoticePendingChanged += OnTrackNoticePendingChanged;
         ShowLyricLine();
 
         // Inline settings
@@ -624,7 +635,6 @@ public partial class NotchWindow : Window
             });
         };
         _fullscreenService.ForegroundChanged += () => Dispatcher.Invoke(() => ApplyFullscreenVisibility(enteringFullscreen: true));
-        _services.EscapeKey.Pressed += OnGamingEscape;
 
         HudOverlay.HudShown += OnHudPresentationChanged;
         VerticalHudOverlay.HudShown += OnHudPresentationChanged;
@@ -2022,6 +2032,7 @@ public partial class NotchWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _services.MediaFeedback.TrackNoticePendingChanged -= OnTrackNoticePendingChanged;
         // Shared services are owned and disposed by App — a secondary island
         // closing (e.g. multi-screen toggled off) must not tear them down.
         CompositionTarget.Rendering -= OnRenderBackdrop;
