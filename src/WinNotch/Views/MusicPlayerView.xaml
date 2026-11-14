@@ -9,7 +9,7 @@
                 <ResourceDictionary Source="Components/MarqueeTextStyle.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <Geometry x:Key="TransportPlay">M 5,3 L 13,8 L 5,13 Z</Geometry>
+            <Geometry x:Key="TransportPlay">M 5,4 Q 5,3 6,3.6 L 12,7 Q 13,8 12,9 L 6,12.4 Q 5,13 5,12 Z</Geometry>
             <Geometry x:Key="TransportPause">M 5,4 L 5,12 M 11,4 L 11,12</Geometry>
             <Geometry x:Key="TransportRepeat">M 3,7 A 2,2 0 0 1 5,5 H 13 M 11,3 L 13,5 L 11,7 M 13,9 A 2,2 0 0 1 11,11 H 3 M 5,9 L 3,11 L 5,13</Geometry>
             <Geometry x:Key="TransportRepeatOne">M 3,7 A 2,2 0 0 1 5,5 H 13 M 11,3 L 13,5 L 11,7 M 13,9 A 2,2 0 0 1 11,11 H 3 M 5,9 L 3,11 L 5,13 M 7,8 L 8,7 L 8,9</Geometry>
@@ -17,7 +17,7 @@
                 <Setter Property="Width" Value="16"/>
                 <Setter Property="Height" Value="16"/>
                 <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                <Setter Property="StrokeThickness" Value="1.6"/>
+                <Setter Property="StrokeThickness" Value="1.8"/>
                 <Setter Property="StrokeStartLineCap" Value="Round"/>
                 <Setter Property="StrokeEndLineCap" Value="Round"/>
                 <Setter Property="StrokeLineJoin" Value="Round"/>
@@ -185,7 +185,7 @@
                         Style="{StaticResource TransportButton}"
                         Margin="0,0,6,0"
                         ToolTip="Previous">
-                    <Path Style="{StaticResource TransportIcon}" Data="M 4,4 V 12 M 12,4 L 6,8 L 12,12 Z"/>
+                    <Path Style="{StaticResource TransportIcon}" Data="M 4,4 V 12 M 12,4 Q 12,3 11,3.7 L 7,7 Q 6,8 7,9 L 11,12.3 Q 12,13 12,12 Z"/>
                 </Button>
 
                 <!-- Play/Pause -->
@@ -204,7 +204,7 @@
                         Style="{StaticResource TransportButton}"
                         Margin="6,0,0,0"
                         ToolTip="Next">
-                    <Path Style="{StaticResource TransportIcon}" Data="M 12,4 V 12 M 4,4 L 10,8 L 4,12 Z"/>
+                    <Path Style="{StaticResource TransportIcon}" Data="M 12,4 V 12 M 4,4 Q 4,3 5,3.7 L 9,7 Q 10,8 9,9 L 5,12.3 Q 4,13 4,12 Z"/>
                 </Button>
 
                 <!-- Repeat -->
