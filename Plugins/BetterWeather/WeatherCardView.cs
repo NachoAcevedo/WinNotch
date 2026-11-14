@@ -98,8 +98,7 @@ public sealed class WeatherCardView : UserControl
     {
         try
         {
-            using var protocol = Microsoft.Win32.Registry.ClassesRoot.OpenSubKey("bingweather");
-            string destination = protocol != null ? "bingweather:" : "https://www.msn.com/es-ar/eltiempo";
+            const string destination = "https://www.accuweather.com/es/ar/buenos-aires/7894/weather-forecast/7894";
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(destination) { UseShellExecute = true });
         }
         catch (Exception error) { _status.Text = "No se pudo abrir el pronóstico: " + error.Message; }
