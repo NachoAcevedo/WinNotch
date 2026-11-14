@@ -219,8 +219,7 @@ internal sealed class BatteryMonitor
         }
         Snapshot = raw with
         {
-            Devices = devices.Select(device => _preferences.For(device.Identity).ShowRemaining
-                ? device : device with { SecondsLeft = null }).ToArray()
+            Devices = devices.Select(device => device with { ShowEstimate = _preferences.For(device.Identity).ShowRemaining }).ToArray()
         };
         UpdateStatus(raw.Failures > 0 ? "Algunos lectores no respondieron."
             : devices.Length == 0 ? "No se detectaron dispositivos compatibles." : "");

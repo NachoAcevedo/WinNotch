@@ -7,12 +7,12 @@ using WinNotch.Services;
 
 namespace PersonalCards.BatteryManager;
 
-[WinNotchPlugin("personal.card.batterymanager", "BatteryManager", "1.0.15", "Nacho_114")]
+[WinNotchPlugin("personal.card.batterymanager", "BatteryManager", "1.0.16", "Nacho_114")]
 public sealed class BatteryManagerPlugin : CardPluginBase, IConfigurablePlugin
 {
     public override string Id => "personal.card.batterymanager";
     public override string Name => "BatteryManager";
-    public override string Version => "1.0.15";
+    public override string Version => "1.0.16";
     public override string Author => "Nacho_114";
     public override string Description => "Batería de periféricos Bluetooth y USB compatibles.";
     public override string CardKey => "batterymanager";
@@ -135,7 +135,7 @@ internal enum BatteryAlert { Connection, Full, Low }
 
 internal enum BatteryBand { Normal, Low, Critical }
 
-internal sealed record DeviceBattery(string Name, int? Level, bool Charging, bool Online, string Kind, bool Approximate, string? Key, long? SecondsLeft = null)
+internal sealed record DeviceBattery(string Name, int? Level, bool Charging, bool Online, string Kind, bool Approximate, string? Key, long? SecondsLeft = null, bool ShowEstimate = true)
 {
     public string Identity => string.IsNullOrEmpty(Key) ? $"{Kind}:{Name}" : Key;
     public BatteryBand Band => Level switch
@@ -176,7 +176,7 @@ internal sealed class BatteryCard : StackPanel
         Children.Add(settings);
         Children.Add(_status);
 
-        var generalOptions = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+        var generalOptions = new StackPanel();
         generalOptions.Resources.MergedDictionaries.Add(options.Resources.MergedDictionaries[0]);
         string? selectedDevice = null;
         var generalSettings = new Border
@@ -233,7 +233,7 @@ internal sealed class BatteryCard : StackPanel
                 label.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
                 if (field.Key is "full" or "offline" or "remaining" or "playstation")
                 {
-                    var row = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
+                    var row = new DockPanel { Margin = new Thickness(0, 8, 0, 0), MinHeight = 26 };
                     label.Margin = new Thickness(0, 0, 8, 0);
                     label.VerticalAlignment = VerticalAlignment.Center;
                     label.TextWrapping = TextWrapping.Wrap;
@@ -347,14 +347,16 @@ internal sealed class BatteryCard : StackPanel
         tile.Children.Add(name);
         tile.ToolTip = device.Name + (device.Charging ? " · Cargando" : !device.Online ? " · Desconectado" :
             device.Approximate ? " · Nivel aproximado" : "");
-        if (device.Online && device.SecondsLeft is > 0)
+        if (device.ShowEstimate && device.Online)
         {
-            var hours = device.SecondsLeft.Value / 3600.0;
-            var estimate = new TextBlock
-            {
-                Text = hours < 1 ? $"≈ {Math.Max(1, Math.Round(hours * 60))} min" : $"≈ {hours:0.#} h",
-                FontSize = 10, TextAlignment = TextAlignment.Center
-            };
+            double hours = device.SecondsLeft.GetValueOrDefault() / 3600.0;
+            string text = device.Charging ? "Cargando"
+                : device.Approximate || device.Level is null ? "Sin estimación"
+                : hours <= 0 ? "Calculando…"
+                : hours < 1 ? $"≈ {Math.Max(1, Math.Round(hours * 60))} min" : $"≈ {hours:0.#} h";
+            var estimate = new TextBlock { Text = text, FontSize = 10, TextAlignment = TextAlignment.Center };
+            if (text == "Calculando…")
+                estimate.ToolTip = "La estimación necesita al menos 30 min de uso y una caída de 3 puntos de batería.";
             estimate.SetResourceReference(TextBlock.ForegroundProperty, "TextMutedBrush");
             tile.Children.Add(estimate);
         }
