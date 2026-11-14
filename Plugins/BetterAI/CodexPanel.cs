@@ -82,6 +82,20 @@ internal sealed class CodexPanel : StackPanel
         var picker = new Grid();
         picker.ColumnDefinitions.Add(new ColumnDefinition());
         picker.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        _chats.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+        _chats.ItemTemplate = (DataTemplate)System.Windows.Markup.XamlReader.Parse("""
+            <DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"/>
+                    <TextBlock Grid.Column="1" Text="{Binding Status}" Margin="8,0,0,0"
+                               Foreground="{DynamicResource TextMutedBrush}" FontSize="10"/>
+                </Grid>
+            </DataTemplate>
+            """);
         picker.Children.Add(_chats);
         Grid.SetColumn(_options, 1); picker.Children.Add(_options);
         var options = new ContextMenu { PlacementTarget = _options, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
@@ -431,7 +445,10 @@ internal sealed class CodexPanel : StackPanel
                 string title = chat.GetProperty("title").GetString() ?? id;
                 if (title == "Guardian review" || _chats.Items.Cast<CodexChat>().Any(c => c.Id == id)) continue;
                 string? host = chat.TryGetProperty("hostId", out var h) ? h.GetString() : null;
-                _chats.Items.Add(new CodexChat(id, title, host));
+                string status = chat.TryGetProperty("status", out var state) && state.ValueKind == JsonValueKind.String
+                    ? state.GetString() switch { "active" => "En curso", "idle" => "En espera", _ => "" }
+                    : "";
+                _chats.Items.Add(new CodexChat(id, title, host, status));
                 if (_chats.Items.Count == _chatLimit + 1) break;
             }
             _chats.SelectedItem = _newChat ? NewChatChoice : _chats.Items.Cast<CodexChat>().FirstOrDefault(c => c.Id == selected && c.Id.Length > 0) ?? _chats.Items.Cast<CodexChat>().FirstOrDefault(c => c.Id.Length > 0) ?? NewChatChoice;

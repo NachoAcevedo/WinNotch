@@ -113,7 +113,7 @@ internal sealed class CodexConnection : ICodexConnection
     }
 }
 
-internal sealed record CodexChat(string Id, string Title, string? HostId)
+internal sealed record CodexChat(string Id, string Title, string? HostId, string Status = "")
 {
     public override string ToString() => Title;
 }
