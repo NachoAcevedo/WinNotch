@@ -23,6 +23,7 @@ public partial class HudOverlay : UserControl
         set { _isActive = value; if (!value) Dismiss(); }
     }
     public bool IsShowing => IsActive && Visibility == Visibility.Visible;
+    internal bool ShowsMusic => IsShowing && _currentType == HudType.Music;
     internal bool ShowsInFullscreen => IsShowing && _currentType is HudType.Volume or HudType.CapsLock or HudType.Music or HudType.Microphone;
 
     /// <summary>Reflects the ShowVolumeHud setting.</summary>
@@ -161,7 +162,7 @@ public partial class HudOverlay : UserControl
             _currentType = HudType.Microphone;
             ShowFeedback(muted ? "\uEC54" : "\uE720", muted ? "Micrófono silenciado" : "Micrófono activado", "");
         });
-        music.Changed += (icon, title, detail) => Dispatcher.BeginInvoke(() =>
+        music.Changed += (icon, title, detail) => Dispatcher.Invoke(() =>
         {
             if (!IsActive || !MusicFeedbackEnabled) return;
             _currentType = HudType.Music;

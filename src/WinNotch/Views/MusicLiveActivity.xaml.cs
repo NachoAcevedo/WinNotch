@@ -19,10 +19,11 @@ public partial class MusicLiveActivity : UserControl
     /// Current synced lyric line; empty shows the song title instead. While the lyrics of a
     /// new song are loading nothing is shown, so the song-change notice comes before the lyrics.
     /// </summary>
-    public void SetLyricLine(string line, bool loading = false)
+    public void SetLyricLine(string line, bool loading = false, bool hideText = false)
     {
         _lyricLine = line ?? string.Empty;
         _lyricsLoading = loading;
+        CompactTitle.Visibility = hideText ? Visibility.Hidden : Visibility.Visible;
         ShowText();
     }
 

@@ -45,8 +45,8 @@ public sealed class MediaFeedbackService : IDisposable
     {
         if (e.PropertyName is not (nameof(MediaInfo.Title) or nameof(MediaInfo.Artist) or nameof(MediaInfo.IsPlaying) or nameof(MediaInfo.HasMedia))) return;
         if (!_enabled) { Snapshot(); return; }
-        if (_media != null && _hadMedia && DateTime.UtcNow >= _quietUntil &&
-            (_media.Title != _title || _media.Artist != _artist))
+        if (_media is { HasMedia: true } && DateTime.UtcNow >= _quietUntil &&
+            (!_hadMedia || _media.Title != _title || _media.Artist != _artist))
             SetTrackNoticePending(true);
         _timer.Stop();
         _timer.Start();

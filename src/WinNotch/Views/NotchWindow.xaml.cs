@@ -37,6 +37,7 @@ public partial class NotchWindow : Window
 
     private void OnHudPresentationChanged() => Dispatcher.Invoke(() =>
     {
+        ShowLyricLine();
         UpdateFullscreenVisibility();
         UpdateClosedContentVisibility();
         RefreshOverlayPresentation();
@@ -44,6 +45,7 @@ public partial class NotchWindow : Window
 
     private void OnHudDismissed() => Dispatcher.Invoke(() =>
     {
+        ShowLyricLine();
         UpdateFullscreenVisibility(animate: true);
         UpdateClosedContentVisibility();
         RefreshOverlayPresentation();
@@ -83,12 +85,11 @@ public partial class NotchWindow : Window
         _heightSpring.AnimateTo(height, _currentHeight);
         UpdateNotchVisuals();
     }
-    private double ClosedWidth => _lyricsStripShown ? LyricsStripWidth : _settings.AlwaysShowMinimum ? 96 : NotchConstants.ClosedWidth;
+    private double ClosedWidth => _lyricsStripShown ? NotchConstants.HudWidth : _settings.AlwaysShowMinimum ? 96 : NotchConstants.ClosedWidth;
     private double ClosedHeight => _lyricsStripShown ? LyricsStripHeight : _settings.AlwaysShowMinimum ? 10 : NotchConstants.ClosedHeight;
 
     // Lyrics with the minimum notch: while music plays, the 96x10 bar grows to fit one line.
     // Explicitly enabled lyrics can also be shown above a fullscreen app.
-    private const double LyricsStripWidth = 360;
     private const double LyricsStripHeight = 30;
     private bool _lyricsStripShown;
     private bool LyricsStripActive =>
@@ -127,8 +128,9 @@ public partial class NotchWindow : Window
     private void ShowLyricLine()
     {
         bool on = _settings.ShowLyrics && _settings.ShowMusicControls;
+        bool hideText = on && (_services.MediaFeedback.IsTrackNoticePending || HudOverlay.ShowsMusic || VerticalHudOverlay.ShowsMusic);
         LiveActivity.SetLyricLine(on ? _services.Lyrics.CurrentLine : string.Empty,
-            on && (_services.Lyrics.IsLoading || _services.MediaFeedback.IsTrackNoticePending));
+            on && _services.Lyrics.IsLoading, hideText);
     }
 
     private void OnTrackNoticePendingChanged()
