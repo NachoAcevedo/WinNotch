@@ -5,10 +5,27 @@ using NAudio.CoreAudioApi.Interfaces;
 
 namespace WinNotch.Services;
 
-/// <summary>Monitors volume on the current default multimedia output.</summary>
+/// <summary>Monitors level and mute on a default audio endpoint.</summary>
 public class VolumeService : IDisposable
 {
     private readonly object _sync = new();
+    private readonly DataFlow _flow;
+    private bool _lastMuted;
+
+    public VolumeService() : this(DataFlow.Render) { }
+
+    private readonly Role _role;
+
+    internal VolumeService(DataFlow flow, Role role = Role.Multimedia)
+    {
+        _flow = flow;
+        _role = role;
+    }
+
+    internal string? EndpointId
+    {
+        get { lock (_sync) return _device?.ID; }
+    }
     private MMDeviceEnumerator? _enumerator;
     private MMDevice? _device;
     private AudioEndpointVolume? _endpointVolume;
@@ -26,6 +43,7 @@ public class VolumeService : IDisposable
     }
 
     public event Action<float, bool>? VolumeChanged;
+    internal event Action<bool>? MuteChanged;
 
     public void Initialize()
     {
@@ -70,12 +88,13 @@ public class VolumeService : IDisposable
         try
         {
             _enumerator ??= new MMDeviceEnumerator();
-            next = _enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+            next = _enumerator.GetDefaultAudioEndpoint(_flow, _role);
             if (_device?.ID == next.ID)
                 return;
 
             ReleaseEndpoint();
             var endpoint = next.AudioEndpointVolume;
+            _lastMuted = endpoint.Mute;
             endpoint.OnVolumeNotification += OnVolumeNotification;
             _device = next;
             _endpointVolume = endpoint;
@@ -96,6 +115,7 @@ public class VolumeService : IDisposable
     {
         float volume;
         bool muted;
+        bool muteChanged;
         lock (_sync)
         {
             if (_disposed || _endpointVolume == null) return;
@@ -104,6 +124,8 @@ public class VolumeService : IDisposable
                 // A previous output's callback may already be queued during a switch.
                 volume = _endpointVolume.MasterVolumeLevelScalar;
                 muted = _endpointVolume.Mute;
+                muteChanged = muted != _lastMuted;
+                _lastMuted = muted;
             }
             catch (Exception)
             {
@@ -111,6 +133,7 @@ public class VolumeService : IDisposable
             }
         }
         VolumeChanged?.Invoke(volume, muted);
+        if (muteChanged) MuteChanged?.Invoke(muted);
     }
 
     public void SetVolume(float level)
@@ -163,7 +186,7 @@ public class VolumeService : IDisposable
     {
         public void OnDefaultDeviceChanged(DataFlow flow, Role role, string deviceId)
         {
-            if (flow == DataFlow.Render && role == Role.Multimedia)
+            if (flow == owner._flow && role == owner._role)
                 owner.QueueEndpointRefresh();
         }
 

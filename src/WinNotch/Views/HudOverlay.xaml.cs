@@ -23,6 +23,7 @@ public partial class HudOverlay : UserControl
         set { _isActive = value; if (!value) Dismiss(); }
     }
     public bool IsShowing => IsActive && Visibility == Visibility.Visible;
+    internal bool ShowsInFullscreen => IsShowing && _currentType is HudType.Volume or HudType.CapsLock or HudType.Music or HudType.Microphone;
 
     /// <summary>Reflects the ShowVolumeHud setting.</summary>
     private bool _volumeHudEnabled = true;
@@ -40,7 +41,7 @@ public partial class HudOverlay : UserControl
         set { _brightnessHudEnabled = value; if (!value && _currentType == HudType.Brightness) Dismiss(); }
     }
 
-    private enum HudType { None, Volume, Brightness, CapsLock, Music, DeviceBattery }
+    private enum HudType { None, Volume, Brightness, CapsLock, Music, Microphone, DeviceBattery }
     private bool _capsLockFeedbackEnabled = true;
     public bool CapsLockFeedbackEnabled
     {
@@ -146,13 +147,19 @@ public partial class HudOverlay : UserControl
         }
     }
 
-    public void BindFeedback(CapsLockService capsLock, MediaFeedbackService music)
+    public void BindFeedback(CapsLockService capsLock, MediaFeedbackService music, NotchServices services)
     {
         capsLock.Changed += enabled => Dispatcher.BeginInvoke(() =>
         {
             if (!IsActive || !CapsLockFeedbackEnabled) return;
             _currentType = HudType.CapsLock;
             ShowFeedback("⇪", enabled ? "Mayúsculas activadas" : "Mayúsculas desactivadas", "Caps Lock");
+        });
+        services.MicrophoneMuteChanged += muted => Dispatcher.BeginInvoke(() =>
+        {
+            if (!IsActive) return;
+            _currentType = HudType.Microphone;
+            ShowFeedback(muted ? "\uEC54" : "\uE720", muted ? "Micrófono silenciado" : "Micrófono activado", "");
         });
         music.Changed += (icon, title, detail) => Dispatcher.BeginInvoke(() =>
         {
@@ -162,11 +169,12 @@ public partial class HudOverlay : UserControl
         });
     }
 
-    internal void ShowDeviceBattery(string name, int level, bool critical)
+    internal void ShowDeviceBattery(string name, int level, bool critical, string status)
     {
         _currentType = HudType.DeviceBattery;
-        ShowFeedback("\uE850", name, critical ? $"Batería crítica · {level}%" : $"Batería baja · {level}%",
-            critical ? System.Windows.Media.Brushes.IndianRed : System.Windows.Media.Brushes.Goldenrod);
+        ShowFeedback("\uE850", name, critical ? $"Batería crítica · {level}%" : $"{status} · {level}%",
+            critical ? System.Windows.Media.Brushes.IndianRed :
+            status == "Batería baja" ? System.Windows.Media.Brushes.Goldenrod : null);
     }
 
     private void ShowFeedback(string icon, string title, string detail, System.Windows.Media.Brush? accent = null)
@@ -180,6 +188,7 @@ public partial class HudOverlay : UserControl
             FeedbackIcon.Foreground = accent;
         FeedbackTitle.Text = title;
         FeedbackDetail.Text = detail;
+        FeedbackDetail.Visibility = string.IsNullOrWhiteSpace(detail) ? Visibility.Collapsed : Visibility.Visible;
         Show();
     }
 

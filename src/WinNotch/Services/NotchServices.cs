@@ -16,6 +16,11 @@ public sealed class NotchServices : IDisposable
     public MediaService Media { get; } = new();
     public AudioCaptureService AudioCapture { get; } = new(bandCount: 12);
     public VolumeService Volume { get; } = new();
+    private VolumeService Microphone { get; } = new(NAudio.CoreAudioApi.DataFlow.Capture);
+    private VolumeService CommunicationsMicrophone { get; } =
+        new(NAudio.CoreAudioApi.DataFlow.Capture, NAudio.CoreAudioApi.Role.Communications);
+
+    internal event Action<bool>? MicrophoneMuteChanged;
     public BrightnessService Brightness { get; } = new();
     public BatteryService Battery { get; } = new();
     public CalendarService Calendar { get; } = new();
@@ -46,6 +51,14 @@ public sealed class NotchServices : IDisposable
         ApplyFeedbackSettings(settings);
         AudioCapture.Start();
         Volume.Initialize();
+        Microphone.MuteChanged += muted => MicrophoneMuteChanged?.Invoke(muted);
+        CommunicationsMicrophone.MuteChanged += muted =>
+        {
+            if (CommunicationsMicrophone.EndpointId != Microphone.EndpointId)
+                MicrophoneMuteChanged?.Invoke(muted);
+        };
+        Microphone.Initialize();
+        CommunicationsMicrophone.Initialize();
         Brightness.Initialize();
         Battery.Initialize();
         Calendar.Initialize();
@@ -62,6 +75,8 @@ public sealed class NotchServices : IDisposable
         AudioCapture.Dispose();
         Media.Dispose();
         Volume.Dispose();
+        Microphone.Dispose();
+        CommunicationsMicrophone.Dispose();
         Brightness.Dispose();
         Battery.Dispose();
         Calendar.Dispose();

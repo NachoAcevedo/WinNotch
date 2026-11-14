@@ -22,26 +22,37 @@ public partial class NotchWindow : Window
     private bool HasActiveHud => HudOverlay.IsShowing || VerticalHudOverlay.IsShowing;
     private bool _incomingFileDrag;
 
-    public bool TryShowDeviceBattery(string name, int level, bool critical)
+    public bool TryShowDeviceBattery(string name, int level, bool critical) =>
+        TryShowDeviceBattery(name, level, critical, "Batería baja");
+
+    public bool TryShowDeviceBattery(string name, int level, bool critical, string status)
     {
         if (!IsVisible || FullscreenOnThisMonitor || HasActiveHud || _vm.NotchState != NotchState.Closed)
             return false;
 
         var hud = _dock == NotchDock.Top ? HudOverlay : VerticalHudOverlay;
-        hud.ShowDeviceBattery(name, level, critical);
+        hud.ShowDeviceBattery(name, level, critical, status);
         return true;
     }
 
     private void OnHudPresentationChanged() => Dispatcher.Invoke(() =>
     {
+        UpdateFullscreenVisibility();
         UpdateClosedContentVisibility();
         RefreshOverlayPresentation();
     });
 
     private void OnHudDismissed() => Dispatcher.Invoke(() =>
     {
+        UpdateFullscreenVisibility(animate: true);
         UpdateClosedContentVisibility();
         RefreshOverlayPresentation();
+        if (!HasActiveHud && _notchShown && _vm.NotchState == NotchState.Closed)
+        {
+            FrameworkElement content = _dock == NotchDock.Top ? ClosedContent : VerticalClosedContent;
+            content.BeginAnimation(OpacityProperty, new DoubleAnimation(0, content.Opacity,
+                TimeSpan.FromMilliseconds(190)) { FillBehavior = FillBehavior.Stop });
+        }
     });
 
     private void RefreshOverlayPresentation()
@@ -76,13 +87,13 @@ public partial class NotchWindow : Window
     private double ClosedHeight => _lyricsStripShown ? LyricsStripHeight : _settings.AlwaysShowMinimum ? 10 : NotchConstants.ClosedHeight;
 
     // Lyrics with the minimum notch: while music plays, the 96x10 bar grows to fit one line.
-    // Not in fullscreen, so games and videos keep only the bar.
+    // Explicitly enabled lyrics can also be shown above a fullscreen app.
     private const double LyricsStripWidth = 360;
     private const double LyricsStripHeight = 30;
     private bool _lyricsStripShown;
     private bool LyricsStripActive =>
-        _settings.AlwaysShowMinimum && _settings.ShowLyrics && _settings.ShowMusicControls &&
-        _dock == NotchDock.Top && !FullscreenOnThisMonitor &&
+        (_settings.AlwaysShowMinimum || FullscreenOnThisMonitor) && _settings.ShowLyrics && _settings.ShowMusicControls &&
+        _dock == NotchDock.Top &&
         _mediaService.MediaInfo is { HasMedia: true, IsPlaying: true };
 
     /// <summary>Re-sizes the closed notch when the lyrics strip turns on or off.</summary>
@@ -91,6 +102,12 @@ public partial class NotchWindow : Window
         bool active = LyricsStripActive;
         if (active == _lyricsStripShown) return;
         _lyricsStripShown = active;
+        UpdateFullscreenVisibility();
+        if (active && FullscreenOnThisMonitor)
+        {
+            Topmost = true;
+            WindowHelper.KeepAbove(this);
+        }
         if (_vm.NotchState == NotchState.Closed && !HasActiveHud)
         {
             _widthSpring.AnimateTo(ClosedWidth, _currentWidth);
@@ -157,8 +174,8 @@ public partial class NotchWindow : Window
             _gamingRevealed = false;
             _gamingHideTimer?.Stop();
         }
-        bool hidden = gaming ? !_gamingRevealed : fullscreen && !_settings.AlwaysShowMinimum;
-        SetNotchShown(!hidden, animate: false);
+        RefreshLyricsStrip();
+        UpdateFullscreenVisibility();
         if (gaming)
         {
             if (enteringFullscreen && !_isMouseOverNotch && !_gamingRevealed) TransitionToClose();
@@ -172,7 +189,18 @@ public partial class NotchWindow : Window
             Topmost = true;
             WindowHelper.KeepAbove(this);
         }
-        RefreshLyricsStrip();
+    }
+
+    private void UpdateFullscreenVisibility(bool animate = false)
+    {
+        bool hidden = GamingActive ? !_gamingRevealed : FullscreenOnThisMonitor && !_settings.AlwaysShowMinimum;
+        bool showHud = HudOverlay.ShowsInFullscreen || VerticalHudOverlay.ShowsInFullscreen;
+        SetNotchShown(!hidden || _lyricsStripShown || showHud, animate);
+        if (showHud && FullscreenOnThisMonitor)
+        {
+            Topmost = true;
+            WindowHelper.KeepAbove(this);
+        }
     }
 
     private void OnGamingEscape()
@@ -200,7 +228,7 @@ public partial class NotchWindow : Window
         _gamingHideTimer?.Stop();
         if (!_gamingRevealed) return;
         _gamingRevealed = false;
-        if (GamingActive) SetNotchShown(false, animate: true);
+        if (GamingActive) UpdateFullscreenVisibility(animate: true);
     }
 
     /// <summary>Shows or hides the whole notch; animated = popup in / shrink out.</summary>
@@ -232,12 +260,15 @@ public partial class NotchWindow : Window
             return;
         }
 
-        var scaleTime = TimeSpan.FromMilliseconds(shown ? 460 : 220);
+        var scaleTime = TimeSpan.FromMilliseconds(shown ? 460 : 280);
         IEasingFunction ease = shown
             ? new ElasticEase { Oscillations = 1, Springiness = 6, EasingMode = EasingMode.EaseOut }
-            : new CubicEase { EasingMode = EasingMode.EaseIn };
-        var scaleAnim = new DoubleAnimation(shown ? 0.3 : 1, shown ? 1 : 0.5, scaleTime) { EasingFunction = ease };
-        var fadeAnim = new DoubleAnimation(shown ? 0 : 1, shown ? 1 : 0, TimeSpan.FromMilliseconds(shown ? 160 : 220));
+            : new CubicEase { EasingMode = EasingMode.EaseInOut };
+        var scaleAnim = new DoubleAnimation(shown ? 0.3 : 1, shown ? 1 : 0.08, scaleTime) { EasingFunction = ease };
+        var fadeAnim = new DoubleAnimation(shown ? 0 : 1, shown ? 1 : 0, TimeSpan.FromMilliseconds(shown ? 160 : 90))
+        {
+            BeginTime = shown ? TimeSpan.Zero : TimeSpan.FromMilliseconds(190)
+        };
         scale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
         scale.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
         NotchCanvas.BeginAnimation(OpacityProperty, fadeAnim);
@@ -535,10 +566,10 @@ public partial class NotchWindow : Window
 
         // Volume & Brightness
         HudOverlay.Bind(_volumeService, _brightnessService);
-        HudOverlay.BindFeedback(_services.CapsLock, _services.MediaFeedback);
+        HudOverlay.BindFeedback(_services.CapsLock, _services.MediaFeedback, _services);
         VerticalHudOverlay.IsActive = false;
         VerticalHudOverlay.Bind(_volumeService, _brightnessService);
-        VerticalHudOverlay.BindFeedback(_services.CapsLock, _services.MediaFeedback);
+        VerticalHudOverlay.BindFeedback(_services.CapsLock, _services.MediaFeedback, _services);
 
         // Battery
         BatteryIndicator.Bind(_batteryService);
