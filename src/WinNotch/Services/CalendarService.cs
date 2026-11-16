@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using WinNotch.Models;
@@ -61,13 +62,18 @@ public class CalendarService : IDisposable
         thread.Start();
     }
 
+    public const int MaxEvents = 5;
+
+    // Join links of the common meeting providers, as they appear in the invite body/location.
+    private static readonly Regex JoinUrlRegex = new(
+        @"https://(?:teams\.microsoft\.com/(?:l/meetup-join|meet)/|teams\.live\.com/meet/|[\w.-]*zoom\.us/(?:j|my|w)/|meet\.google\.com/|[\w.-]*webex\.com/(?:meet|join|[\w.-]+/j\.php))[^\s<>""')\]]+",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     private static List<CalendarEvent> FetchOutlookEvents()
     {
         object? outlook = null;
         object? ns = null;
-        object? calFolder = null;
-        object? items = null;
-        object? restricted = null;
+        object? stores = null;
 
         try
         {
@@ -79,8 +85,45 @@ public class CalendarService : IDisposable
             dynamic ol = outlook;
             ns = ol.GetNamespace("MAPI");
             dynamic dns = ns!;
-            // olFolderCalendar = 9
-            calFolder = dns.GetDefaultFolder(9);
+            stores = dns.Stores;
+
+            var events = new List<CalendarEvent>();
+            // Every account configured in Outlook, not just the default one.
+            foreach (dynamic store in (dynamic)stores!)
+            {
+                try { events.AddRange(FetchStoreEvents(store)); }
+                catch { }
+                finally { ReleaseCom(store); }
+            }
+
+            return events
+                .OrderBy(e => e.Start)
+                .Take(MaxEvents)
+                .ToList();
+        }
+        catch
+        {
+            return new List<CalendarEvent>();
+        }
+        finally
+        {
+            ReleaseCom(stores);
+            ReleaseCom(ns);
+            ReleaseCom(outlook);
+        }
+    }
+
+    private static List<CalendarEvent> FetchStoreEvents(dynamic store)
+    {
+        object? calFolder = null;
+        object? items = null;
+        object? restricted = null;
+        var events = new List<CalendarEvent>();
+
+        try
+        {
+            // olFolderCalendar = 9 (throws for stores without a calendar, e.g. archives)
+            calFolder = store.GetDefaultFolder(9);
             dynamic dcal = calFolder!;
             items = dcal.Items;
             dynamic ditems = items!;
@@ -90,11 +133,11 @@ public class CalendarService : IDisposable
             var now = DateTime.Now;
             var endOfDay = now.Date.AddDays(1).AddSeconds(-1);
 
-            // Restrict to today's events (Outlook expects locale-formatted dates)
-            string filter = $"[Start] >= '{now:g}' AND [Start] <= '{endOfDay:g}'";
+            // Today's events that haven't ended yet: a meeting stays listed
+            // (and joinable) until its end time. Outlook expects locale-formatted dates.
+            string filter = $"[End] > '{now:g}' AND [Start] <= '{endOfDay:g}'";
             restricted = ditems.Restrict(filter);
 
-            var events = new List<CalendarEvent>();
             foreach (dynamic item in (dynamic)restricted!)
             {
                 try
@@ -105,26 +148,33 @@ public class CalendarService : IDisposable
                         Start = item.Start,
                         End = item.End,
                         IsAllDay = item.AllDayEvent,
-                        CalendarColor = "#4A90D9"
+                        CalendarColor = "#4A90D9",
+                        JoinUrl = ExtractJoinUrl(item)
                     });
                 }
                 catch { }
-                if (events.Count >= 5) break; // Limit to 5 events
+                finally { ReleaseCom(item); }
+                if (events.Count >= MaxEvents) break; // sorted by start: the rest come later
             }
-            return events;
-        }
-        catch
-        {
-            return new List<CalendarEvent>();
         }
         finally
         {
             ReleaseCom(restricted);
             ReleaseCom(items);
             ReleaseCom(calFolder);
-            ReleaseCom(ns);
-            ReleaseCom(outlook);
         }
+        return events;
+    }
+
+    private static string? ExtractJoinUrl(dynamic item)
+    {
+        string location = "", body = "";
+        try { location = item.Location ?? ""; } catch { }
+        try { body = item.Body ?? ""; } catch { }
+
+        var match = JoinUrlRegex.Match(location);
+        if (!match.Success) match = JoinUrlRegex.Match(body);
+        return match.Success ? match.Value.TrimEnd('.', ',', ';', '>') : null;
     }
 
     private static void ReleaseCom(object? com)

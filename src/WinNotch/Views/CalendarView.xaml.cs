@@ -1,9 +1,13 @@
 using System;
+using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using WinNotch.Services;
 
 namespace WinNotch.Views;
@@ -23,6 +27,32 @@ public partial class CalendarView : UserControl
         _calendarService = calendarService;
         _calendarService.EventsUpdated += () => Dispatcher.Invoke(UpdateEventsList);
         UpdateEventsList();
+
+        // Re-filter every minute so a meeting disappears right when it ends,
+        // without waiting for the 5-minute Outlook refresh.
+        _expiryTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+        _expiryTimer.Tick += (_, _) => UpdateEventsList();
+        _expiryTimer.Start();
+    }
+
+    private DispatcherTimer? _expiryTimer;
+
+    private static void OpenMeeting(string url)
+    {
+        // Teams links go straight to the desktop app (no browser "open Teams?" page);
+        // fall back to the https link if the msteams: protocol isn't registered.
+        const string teamsWeb = "https://teams.microsoft.com/";
+        if (url.StartsWith(teamsWeb, StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo("msteams:/" + url.Substring(teamsWeb.Length)) { UseShellExecute = true });
+                return;
+            }
+            catch { }
+        }
+        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+        catch { }
     }
 
     private void UpdateDateHeader()
@@ -38,7 +68,8 @@ public partial class CalendarView : UserControl
         UpdateDateHeader();
         EventsPanel.Children.Clear();
 
-        var events = _calendarService?.TodayEvents;
+        var now = DateTime.Now;
+        var events = _calendarService?.TodayEvents.Where(e => e.End > now).ToList();
         if (events == null || events.Count == 0)
         {
             var faintBrush = TryFindResource("TextFaintBrush") as SolidColorBrush
@@ -106,11 +137,36 @@ public partial class CalendarView : UserControl
                 FontSize = 12,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 220
+                MaxWidth = 200
             });
 
             var surface = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 7, 10, 7), Margin = new Thickness(0, 3, 0, 3), Child = item };
             surface.SetResourceReference(Border.BackgroundProperty, "SurfaceRaisedBrush");
+
+            if (!string.IsNullOrEmpty(ev.JoinUrl))
+            {
+                // Video-camera glyph (Segoe Fluent/MDL2) marks joinable meetings
+                item.Children.Add(new TextBlock
+                {
+                    Text = "",
+                    FontFamily = new System.Windows.Media.FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                    Foreground = TryFindResource("AccentBrush") as SolidColorBrush
+                        ?? new SolidColorBrush(Color.FromRgb(0x4A, 0x90, 0xD9)),
+                    FontSize = 12,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(6, 0, 0, 0)
+                });
+
+                var url = ev.JoinUrl;
+                surface.Cursor = System.Windows.Input.Cursors.Hand;
+                surface.ToolTip = "Unirse a la reunión";
+                surface.MouseLeftButtonUp += (_, e) =>
+                {
+                    e.Handled = true;
+                    OpenMeeting(url);
+                };
+            }
+
             EventsPanel.Children.Add(surface);
         }
     }
