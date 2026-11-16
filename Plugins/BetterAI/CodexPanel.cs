@@ -68,9 +68,13 @@ internal sealed class CodexPanel : StackPanel
 
     public CodexPanel() : this(new CodexConnection()) { }
 
-    internal CodexPanel(ICodexConnection connection, bool persistSettings = true, string agent = "Codex", string cardMode = "Codex", string settingsFile = "codex-plugin-settings.json", int chatLimit = 5)
+    // Sin respuesta desde el notch: solo se leen los chats (sin cuadro de texto ni "+ Nuevo chat").
+    private readonly bool _canReply;
+
+    internal CodexPanel(ICodexConnection connection, bool persistSettings = true, string agent = "Codex", string cardMode = "Codex", string settingsFile = "codex-plugin-settings.json", int chatLimit = 5, bool canReply = true)
     {
         _connection = connection;
+        _canReply = canReply;
         _persistSettings = persistSettings;
         _agent = agent;
         _mode = cardMode;
@@ -137,6 +141,7 @@ internal sealed class CodexPanel : StackPanel
         inputBorder.SetResourceReference(Border.BorderBrushProperty, "BorderBrush");
         row.Margin = new Thickness(0);
         inputBorder.Margin = new Thickness(0, 4, 0, 0);
+        if (!_canReply) inputBorder.Visibility = Visibility.Collapsed;
         Children.Add(inputBorder); Children.Add(_status);
         foreach (var control in new Control[] { _input, _conversation, _chats, _keep, _options })
             control.SetResourceReference(Control.ForegroundProperty, "TextPrimaryBrush");
@@ -171,7 +176,7 @@ internal sealed class CodexPanel : StackPanel
         _refresh.Click += async (_, _) => await LoadChatsAsync();
         _chats.DropDownOpened += (_, _) => AgentComposer.NotifyActivity();
         _chats.DropDownClosed += (_, _) => AgentComposer.NotifyActivity();
-        _chats.Items.Add(NewChatChoice);
+        if (_canReply) _chats.Items.Add(NewChatChoice);
         _chats.SelectionChanged += async (_, _) =>
         {
             if (_loading) return;
@@ -319,7 +324,7 @@ internal sealed class CodexPanel : StackPanel
 
     internal void StartNewChat()
     {
-        if (_sending) return;
+        if (_sending || !_canReply) return;
         _newChat = true;
         ++_selectionVersion;
         _chats.SelectedItem = NewChatChoice;
@@ -437,7 +442,7 @@ internal sealed class CodexPanel : StackPanel
             var arguments = new Dictionary<string, object> { ["mode"] = "history", ["source"] = "codex", ["limit"] = _chatLimit };
             var result = await _connection.CallAsync("list_threads", arguments, _lifetime?.Token ?? default);
             _chats.Items.Clear();
-            _chats.Items.Add(NewChatChoice);
+            if (_canReply) _chats.Items.Add(NewChatChoice);
             foreach (var chat in result.GetProperty("threads").EnumerateArray())
             {
                 if (chat.TryGetProperty("kind", out var kind) && kind.GetString() != "codex") continue;
@@ -449,10 +454,11 @@ internal sealed class CodexPanel : StackPanel
                     ? state.GetString() switch { "active" => "En curso", "idle" => "En espera", _ => "" }
                     : "";
                 _chats.Items.Add(new CodexChat(id, title, host, status));
-                if (_chats.Items.Count == _chatLimit + 1) break;
+                if (_chats.Items.Count == _chatLimit + (_canReply ? 1 : 0)) break;
             }
-            _chats.SelectedItem = _newChat ? NewChatChoice : _chats.Items.Cast<CodexChat>().FirstOrDefault(c => c.Id == selected && c.Id.Length > 0) ?? _chats.Items.Cast<CodexChat>().FirstOrDefault(c => c.Id.Length > 0) ?? NewChatChoice;
-            _status.Text = _newChat ? "" : _chats.Items.Count <= 1 ? $"No hay chats de {_agent} disponibles." : "Elegí el chat al que querés escribir.";
+            var first = _chats.Items.Cast<CodexChat>().FirstOrDefault(c => c.Id == selected && c.Id.Length > 0) ?? _chats.Items.Cast<CodexChat>().FirstOrDefault(c => c.Id.Length > 0);
+            _chats.SelectedItem = _newChat ? NewChatChoice : first ?? (_canReply ? NewChatChoice : null);
+            _status.Text = _newChat ? "" : first == null ? $"No hay chats de {_agent} disponibles." : _canReply ? "Elegí el chat al que querés escribir." : "";
         }
         catch (Exception ex) { _status.Text = "No pude cargar los chats: " + UserError(ex); }
         finally { _loading = false; _refresh.IsEnabled = true; }
@@ -507,7 +513,7 @@ internal sealed class CodexPanel : StackPanel
 
     private async Task SendAsync()
     {
-        if (_sending || (string.IsNullOrWhiteSpace(_input.Text) && _attachments.Count == 0)) return;
+        if (!_canReply || _sending || (string.IsNullOrWhiteSpace(_input.Text) && _attachments.Count == 0)) return;
         var chat = _chats.SelectedItem as CodexChat;
         if (!_newChat && chat == null) { _status.Text = "Elegí un chat o tocá + para iniciar uno nuevo."; return; }
         string text = _input.Text.Trim();
@@ -620,7 +626,7 @@ internal sealed class CodexPanel : StackPanel
             _status.Text = needsAttention ? $"{_agent} necesita tu atención. Revisá la solicitud en la app." : "";
             string conversation = busy ? _pendingQuestion ?? $"{_agent} está pensando…" : latestReply ?? "";
             if (conversation.Length > 40000) conversation = conversation[..40000] + "\n\n… (continuá leyendo en el chat)";
-            if (conversation.Length == 0) conversation = $"Escribí abajo para continuar este chat de {_agent}.";
+            if (conversation.Length == 0) conversation = _canReply ? $"Escribí abajo para continuar este chat de {_agent}." : $"Sin respuestas todavía en este chat de {_agent}.";
             if (_previousConversation != conversation)
             {
                 _previousConversation = conversation; _conversation.Text = conversation; _conversation.ScrollToHome();
