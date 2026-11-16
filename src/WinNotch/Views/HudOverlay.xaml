@@ -49,7 +49,9 @@
                    TextAlignment="Center"/>
     </Grid>
     <Grid x:Name="FeedbackContent" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="6,0">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <!-- Text column is star-sized so long titles trim with an ellipsis instead of
+             overflowing the centered grid and clipping the icon on the left. -->
+        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
         <Border Width="28" Height="28" CornerRadius="{StaticResource InterfaceControlRadius}" Background="{DynamicResource AccentSoftBrush}" Margin="0,0,10,0" VerticalAlignment="Center">
             <TextBlock x:Name="FeedbackIcon" FontFamily="Segoe Fluent Icons" FontSize="17" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
         </Border>
