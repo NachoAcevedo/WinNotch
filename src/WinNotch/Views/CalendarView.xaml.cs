@@ -125,8 +125,8 @@ public partial class CalendarView : UserControl
                 Foreground = mutedBrush,
                 FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 6, 0),
-                Width = 36
+                Margin = new Thickness(0, 0, 8, 0),
+                MinWidth = 76
             });
 
             // Title
@@ -137,7 +137,7 @@ public partial class CalendarView : UserControl
                 FontSize = 12,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 200
+                MaxWidth = 170
             });
 
             var surface = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 7, 10, 7), Margin = new Thickness(0, 3, 0, 3), Child = item };

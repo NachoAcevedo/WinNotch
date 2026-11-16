@@ -16,5 +16,5 @@ public class CalendarEvent
     /// <summary>Online-meeting join URL (Teams/Zoom/Meet/Webex), if the invite has one.</summary>
     public string? JoinUrl { get; set; }
 
-    public string TimeDisplay => IsAllDay ? "All day" : Start.ToString("HH:mm");
+    public string TimeDisplay => IsAllDay ? "All day" : $"{Start:HH:mm} - {End:HH:mm}";
 }
