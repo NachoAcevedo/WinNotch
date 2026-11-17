@@ -205,9 +205,11 @@ public partial class NotchWindow : Window
 
     private void UpdateFullscreenVisibility(bool animate = false)
     {
-        bool hidden = GamingActive ? !_gamingRevealed : FullscreenOnThisMonitor && !_settings.AlwaysShowMinimum;
+        bool gaming = GamingActive;
+        bool hidden = gaming ? !_gamingRevealed : FullscreenOnThisMonitor && !_settings.AlwaysShowMinimum;
         bool showHud = HudOverlay.ShowsInFullscreen || VerticalHudOverlay.ShowsInFullscreen;
-        SetNotchShown(!hidden || _lyricsStripShown || showHud, animate);
+        bool shown = !hidden || (!gaming && _lyricsStripShown) || showHud;
+        SetNotchShown(shown, animate || (gaming && !shown));
         if (showHud && FullscreenOnThisMonitor)
         {
             Topmost = true;
@@ -277,13 +279,27 @@ public partial class NotchWindow : Window
             ? new ElasticEase { Oscillations = 1, Springiness = 6, EasingMode = EasingMode.EaseOut }
             : new CubicEase { EasingMode = EasingMode.EaseInOut };
         var scaleAnim = new DoubleAnimation(shown ? 0.3 : 1, shown ? 1 : 0.08, scaleTime) { EasingFunction = ease };
-        var fadeAnim = new DoubleAnimation(shown ? 0 : 1, shown ? 1 : 0, TimeSpan.FromMilliseconds(shown ? 160 : 90))
+        AnimationTimeline fade;
+        if (shown)
         {
-            BeginTime = shown ? TimeSpan.Zero : TimeSpan.FromMilliseconds(190)
-        };
+            fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(160));
+        }
+        else
+        {
+            double opacity = NotchCanvas.Opacity;
+            fade = new DoubleAnimationUsingKeyFrames
+            {
+                KeyFrames =
+                {
+                    new DiscreteDoubleKeyFrame(opacity, KeyTime.FromTimeSpan(TimeSpan.Zero)),
+                    new DiscreteDoubleKeyFrame(opacity, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(190))),
+                    new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(scaleTime))
+                }
+            };
+        }
         scale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
         scale.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
-        NotchCanvas.BeginAnimation(OpacityProperty, fadeAnim);
+        NotchCanvas.BeginAnimation(OpacityProperty, fade);
     }
 
     private void OnCardSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1020,7 +1036,8 @@ public partial class NotchWindow : Window
     /// </summary>
     private void RefreshScreenBounds()
     {
-        var screen = ScreenHelper.FindScreenByDevice(_preferredScreenDevice);
+        var screen = ScreenHelper.FindScreenByDevice(
+            _isPrimary && !_settings.ShowOnAllScreens ? null : _preferredScreenDevice);
         _screenDevice = screen.DeviceName;
         _screenPhysical = screen.Bounds;
         _screenScale = ScreenHelper.GetScaleForScreen(screen);

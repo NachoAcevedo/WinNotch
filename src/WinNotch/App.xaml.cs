@@ -154,7 +154,7 @@ public partial class App : Application
                 if (!ReferenceEquals(other, window))
                     other.ApplySettings(settings);
             }
-            RebuildSecondaryWindows();
+            ReconcileDisplays();
         };
 
         // Open/close sync across islands (when enabled)
