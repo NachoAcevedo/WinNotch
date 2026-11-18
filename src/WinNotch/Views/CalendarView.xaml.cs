@@ -37,6 +37,11 @@ public partial class CalendarView : UserControl
 
     private DispatcherTimer? _expiryTimer;
 
+    // Rounded camera body plus lens, on the same 16x16 grid as the transport icons.
+    private static readonly Geometry MeetingIcon = Geometry.Parse(
+        "M 3.5,4.5 H 8.5 A 1.5,1.5 0 0 1 10,6 V 10 A 1.5,1.5 0 0 1 8.5,11.5 H 3.5 A 1.5,1.5 0 0 1 2,10 V 6 A 1.5,1.5 0 0 1 3.5,4.5 Z " +
+        "M 10,7 L 13,5.3 Q 14,4.8 14,5.8 V 10.2 Q 14,11.2 13,10.7 L 10,9");
+
     private static void OpenMeeting(string url)
     {
         // Teams links go straight to the desktop app (no browser "open Teams?" page);
@@ -145,14 +150,19 @@ public partial class CalendarView : UserControl
 
             if (!string.IsNullOrEmpty(ev.JoinUrl))
             {
-                // Video-camera glyph (Segoe Fluent/MDL2) marks joinable meetings
-                item.Children.Add(new TextBlock
+                // Video camera marking joinable meetings, drawn in the same stroke language
+                // as the transport icons (16x16 grid, 1.8 stroke, round caps and joins).
+                item.Children.Add(new Path
                 {
-                    Text = "",
-                    FontFamily = new System.Windows.Media.FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
-                    Foreground = TryFindResource("AccentBrush") as SolidColorBrush
+                    Data = MeetingIcon,
+                    Width = 16,
+                    Height = 16,
+                    Stroke = TryFindResource("AccentBrush") as SolidColorBrush
                         ?? new SolidColorBrush(Color.FromRgb(0x4A, 0x90, 0xD9)),
-                    FontSize = 12,
+                    StrokeThickness = 1.8,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round,
+                    StrokeLineJoin = PenLineJoin.Round,
                     VerticalAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(6, 0, 0, 0)
                 });

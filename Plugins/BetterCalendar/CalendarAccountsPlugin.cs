@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -221,7 +222,9 @@ public sealed class CalendarAccountsPlugin : PluginBase
 
             DateTime now = DateTime.Now;
             DateTime endOfDay = now.Date.AddDays(1.0).AddSeconds(-1.0);
-            string filter = $"[Start] >= '{now:g}' AND [Start] <= '{endOfDay:g}'";
+            // Igual que el CalendarService integrado: una reunión sigue listada (y se puede
+            // abrir desde el notch) hasta que termina, no solo hasta que empieza.
+            string filter = $"[End] > '{now:g}' AND [Start] <= '{endOfDay:g}'";
 
             var known = new List<string>();
             List<string> disabled;
@@ -274,10 +277,11 @@ public sealed class CalendarAccountsPlugin : PluginBase
 
         lock (_upcomingLock)
         {
-            // Outlook solo devuelve eventos que todavía no empezaron: se conservan los que
-            // empezaron hace instantes para no perder su aviso si el refresco cae justo encima.
+            // Se conservan los que empezaron hace instantes y ya no vinieron (ej. reuniones
+            // cortas que terminaron) para no perder su aviso si el refresco cae justo encima.
             DateTime current = DateTime.Now;
-            var justStarted = _upcoming.Where(e => e.Start <= current && current - e.Start < AlertWindow);
+            var justStarted = _upcoming.Where(e => e.Start <= current && current - e.Start < AlertWindow
+                && !ordered.Any(o => o.Title == e.Title && o.Start == e.Start));
             _upcoming = ordered.Concat(justStarted).ToList();
         }
         return ordered.Take(MaxEvents).ToList();
@@ -531,6 +535,23 @@ public sealed class CalendarAccountsPlugin : PluginBase
         Refresh();
     }
 
+    // Mismo patrón que el CalendarService integrado: links de unión de Teams/Zoom/Meet/Webex
+    // tal como aparecen en la ubicación o el cuerpo de la invitación.
+    private static readonly Regex JoinUrlRegex = new(
+        @"https://(?:teams\.microsoft\.com/(?:l/meetup-join|meet)/|teams\.live\.com/meet/|[\w.-]*zoom\.us/(?:j|my|w)/|meet\.google\.com/|[\w.-]*webex\.com/(?:meet|join|[\w.-]+/j\.php))[^\s<>""')\]]+",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static string? ExtractJoinUrl(dynamic item)
+    {
+        string location = "", body = "";
+        try { location = item.Location ?? ""; } catch { }
+        try { body = item.Body ?? ""; } catch { }
+
+        var match = JoinUrlRegex.Match(location);
+        if (!match.Success) match = JoinUrlRegex.Match(body);
+        return match.Success ? match.Value.TrimEnd('.', ',', ';', '>') : null;
+    }
+
     private static List<CalendarEvent> FetchStore(dynamic store, string filter, string color)
     {
         dynamic? folder = null;
@@ -555,7 +576,8 @@ public sealed class CalendarAccountsPlugin : PluginBase
                         Start = item.Start,
                         End = item.End,
                         IsAllDay = item.AllDayEvent,
-                        CalendarColor = color
+                        CalendarColor = color,
+                        JoinUrl = ExtractJoinUrl(item)
                     });
                 }
                 catch
