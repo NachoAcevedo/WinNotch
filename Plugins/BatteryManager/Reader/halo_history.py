@@ -6,18 +6,20 @@ that is suspended adds nothing, so the estimate is "hours of use left", not hour
 the clock. A long gap between two readings (the PC slept, the app was closed) counts
 as MAX_GAP at most.
 
-The history starts over when the device charges: seen charging, or its level jumps up
+The current cycle starts over when the device charges: seen charging, or its level jumps up
 by RESET_RISE or more (charged while the app was not running, or a fresh battery). The
 drain rate is a least-squares fit of the level against the time used since then, and
 no estimate is given until the device has been used for MIN_SPAN and dropped MIN_DROP
 percentage points, so the first reading after a charge does not produce a wild guess.
 
 The history is kept in %APPDATA%\\HaloBattery\\history.json, so an estimate survives a
-restart of the app or of Windows.
+restart of the app or of Windows. The last learned drain rate survives a charge and
+provides an estimate until the new cycle has enough readings.
 """
 from __future__ import annotations
 
 import json
+import math
 import os
 import time
 from typing import Dict, List, Optional
@@ -67,6 +69,9 @@ class History:
                          "seen": float(d.get("seen", now)), "samples": samples}
             except (AttributeError, TypeError, ValueError):
                 continue                      # a damaged entry: start that device over
+            learned = d.get("learned_rate")
+            if isinstance(learned, (int, float)) and math.isfinite(learned) and learned > 0:
+                entry["learned_rate"] = float(learned)
             if now - entry["seen"] < FORGET_AFTER:
                 self.devices[str(key)] = entry
 
@@ -99,6 +104,7 @@ class History:
         if d is None:
             d = self.devices[key] = {"use": 0.0, "last": None, "seen": now, "samples": []}
         d["seen"] = now
+        self.rate(key)  # Preserve a valid previous cycle before a charge resets its samples.
         if charging:
             if d["samples"] or d["use"]:
                 self._reset(d)
@@ -126,6 +132,19 @@ class History:
 
     # ---------------- estimate
     def rate(self, key: str) -> Optional[float]:
+        """Use the current cycle when ready, otherwise the last learned rate."""
+        d = self.devices.get(key)
+        if d is None:
+            return None
+        current = self._current_rate(key)
+        if current is not None:
+            if d.get("learned_rate") != current:
+                d["learned_rate"] = current
+                self.dirty = True
+            return current
+        return d.get("learned_rate")
+
+    def _current_rate(self, key: str) -> Optional[float]:
         """Percentage points used per second of use, or None when not known yet."""
         d = self.devices.get(key)
         if d is None or len(d["samples"]) < 2:
