@@ -32,9 +32,9 @@ internal sealed class CodexPanel : StackPanel
     private readonly List<PhotoAttachment> _attachments = new();
     public event Action<string>? ModeRequested;
     public event Action? SettingsRequested;
-    private readonly TextBox _conversation = new()
+    private readonly MarkdownReplyView _conversation = new()
     {
-        IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        IsReadOnly = true, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
         MaxHeight = 200, MinHeight = 24, FontSize = 12, BorderThickness = new Thickness(0), Background = System.Windows.Media.Brushes.Transparent, Margin = new Thickness(0, 4, 0, 1)
     };
     private readonly TextBox _input = new()

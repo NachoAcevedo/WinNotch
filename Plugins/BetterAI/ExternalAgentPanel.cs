@@ -15,7 +15,7 @@ internal sealed class ExternalAgentPanel : StackPanel
     private readonly TextBox _input = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 38, MaxHeight = 100, FontSize = 12, Padding = new Thickness(8), VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     private readonly Button _open = new() { HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 7, 0, 0), Padding = new Thickness(10, 5, 10, 5) };
     private readonly TextBlock _status = new() { FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 7, 0, 0) };
-    private readonly TextBox _lastReply = new() { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 160, FontSize = 12, BorderThickness = new Thickness(0), Background = System.Windows.Media.Brushes.Transparent, Visibility = Visibility.Collapsed };
+    private readonly MarkdownReplyView _lastReply = new() { IsReadOnly = true, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 160, FontSize = 12, BorderThickness = new Thickness(0), Background = System.Windows.Media.Brushes.Transparent, Visibility = Visibility.Collapsed };
     private readonly AgentComposer _composer;
     private VsCodeReply? _reply;
     private FileSystemWatcher? _watcher;

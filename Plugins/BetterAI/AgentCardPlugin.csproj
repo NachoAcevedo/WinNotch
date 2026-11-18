@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- Mismo nombre que el plugin original para reemplazarlo en personal.card.agent -->
     <AssemblyName>AgentCardPlugin</AssemblyName>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <RootNamespace>PersonalCards</RootNamespace>
   </PropertyGroup>
 
@@ -14,4 +15,5 @@
     <ProjectReference Include="..\..\src\WinNotch\WinNotch.csproj" Private="false" Condition="'$(WinNotchReferencePath)' == ''" />
     <Reference Include="WinNotch" HintPath="$(WinNotchReferencePath)" Private="false" Condition="'$(WinNotchReferencePath)' != ''" />
   </ItemGroup>
+  <ItemGroup><PackageReference Include="MdXaml" Version="1.27.0" /></ItemGroup>
 </Project>

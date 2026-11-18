@@ -10,7 +10,7 @@ namespace WinNotch.Views;
 public sealed class AgentCardView : UserControl
 {
     private readonly ComboBox _provider = new() { Width = 150, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 7) };
-    private readonly TextBox _reply = new() { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, BorderThickness = new Thickness(0), Background = System.Windows.Media.Brushes.Transparent, Height = 210, FontSize = 12 };
+    private readonly PersonalCards.MarkdownReplyView _reply = new() { IsReadOnly = true, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, BorderThickness = new Thickness(0), Background = System.Windows.Media.Brushes.Transparent, Height = 210, FontSize = 12 };
     private readonly TextBlock _status = new() { FontSize = 10, Margin = new Thickness(0, 6, 0, 0), TextWrapping = TextWrapping.Wrap };
     private FileSystemWatcher? _watcher;
     private readonly DispatcherTimer _debounce = new() { Interval = TimeSpan.FromMilliseconds(200) };
