@@ -296,6 +296,8 @@ public sealed class CalendarAccountsPlugin : PluginBase
         {
             starting = _upcoming
                 .Where(e => !e.IsAllDay && e.Start <= now && now - e.Start < AlertWindow)
+                // El almuerzo es un bloqueo para rechazar reuniones, no una reunión: sin aviso.
+                .Where(e => e.Title.IndexOf("almuerzo", StringComparison.OrdinalIgnoreCase) < 0)
                 .ToList();
         }
 

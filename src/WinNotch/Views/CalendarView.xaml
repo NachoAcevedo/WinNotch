@@ -3,48 +3,169 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              MinWidth="160">
 
+    <UserControl.Resources>
+        <!-- Flat button with a hover/pressed overlay on top of whatever background it has
+             (the selected day keeps its accent fill while hovered). -->
+        <Style x:Key="CalButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8"/>
+                            <Border x:Name="Overlay" CornerRadius="8" Opacity="0"
+                                    Background="{DynamicResource HoverOverlayBrush}"/>
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Overlay" Property="Opacity" Value="1"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Overlay" Property="Background" Value="{DynamicResource PressedOverlayBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Today header -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,6">
-            <TextBlock x:Name="DayOfWeekText"
-                       Text="Thursday"
-                       Foreground="{DynamicResource TextMutedBrush}"
-                       FontSize="12"
-                       FontWeight="Medium"/>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock x:Name="DayNumberText"
-                           Text="17"
-                           Foreground="{DynamicResource TextPrimaryBrush}"
-                           FontSize="26"
-                           FontWeight="Bold"
-                           VerticalAlignment="Bottom"/>
-                <TextBlock x:Name="MonthText"
-                           Text="Jul"
-                           Foreground="{DynamicResource TextSubtleBrush}"
-                           FontSize="12"
-                           VerticalAlignment="Bottom"
-                           Margin="6,0,0,4"/>
-            </StackPanel>
-        </StackPanel>
+        <!-- Header: "Miércoles 18 Nov · 1 evento hoy"; clicking it expands/collapses the month -->
+        <Grid Grid.Row="0" Margin="0,0,0,4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
 
-        <!-- Events list -->
-        <ScrollViewer Grid.Row="1"
-                      MaxHeight="180" VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled">
-            <StackPanel x:Name="EventsPanel">
-                <!-- "No events" placeholder -->
-                <TextBlock x:Name="NoEventsText"
-                           Text="No hay eventos próximos"
-                           Foreground="{DynamicResource TextFaintBrush}"
-                           FontSize="12"
-                           Margin="0,4,0,0"/>
+            <Button x:Name="HeaderButton" Style="{StaticResource CalButton}"
+                    Click="OnHeaderClick" Padding="6,5" Margin="-6,0,0,0"
+                    HorizontalContentAlignment="Stretch"
+                    ToolTip="Ver el mes">
+                <DockPanel LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="CountText"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   FontSize="12" VerticalAlignment="Center"/>
+                        <Path Data="M 4,6 L 8,10 L 12,6" Width="16" Height="16"
+                              Stroke="{DynamicResource TextMutedBrush}" StrokeThickness="1.8"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                              Margin="6,0,0,0" VerticalAlignment="Center"
+                              RenderTransformOrigin="0.5,0.5">
+                            <Path.RenderTransform>
+                                <RotateTransform x:Name="ChevronRotate"/>
+                            </Path.RenderTransform>
+                        </Path>
+                    </StackPanel>
+                    <TextBlock x:Name="TitleText"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               FontSize="14" FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"/>
+                </DockPanel>
+            </Button>
+
+            <Button x:Name="TodayButton" Grid.Column="1" Style="{StaticResource CalButton}"
+                    Content="Hoy" Visibility="Collapsed" Click="OnTodayClick"
+                    Padding="10,3" Margin="6,0,0,0" VerticalAlignment="Center"
+                    FontSize="12" FontWeight="SemiBold"
+                    Foreground="{DynamicResource AccentBrush}"
+                    BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="1"
+                    ToolTip="Volver a hoy"/>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Month (only while expanded): the host's width animates 0 -> 225,
+                 the fixed-width content inside is clipped while it grows. -->
+            <Border x:Name="MonthHost" Grid.Column="0" Width="0" Opacity="0" Visibility="Collapsed"
+                    ClipToBounds="True" VerticalAlignment="Top">
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="MonthShift" X="-16"/>
+                </Border.RenderTransform>
+                <Border Width="213" Margin="0,0,12,0" HorizontalAlignment="Left"
+                        BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,0,1,0"
+                        Padding="0,2,12,2">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,4">
+                            <Button x:Name="NextMonthButton" DockPanel.Dock="Right"
+                                    Style="{StaticResource CalButton}" Width="26" Height="26"
+                                    Click="OnNextMonth" ToolTip="Mes siguiente">
+                                <Path Data="M 6,4 L 10,8 L 6,12" Width="16" Height="16"
+                                      Stroke="{DynamicResource TextMutedBrush}" StrokeThickness="1.8"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                            </Button>
+                            <Button x:Name="PrevMonthButton" DockPanel.Dock="Right"
+                                    Style="{StaticResource CalButton}" Width="26" Height="26"
+                                    Click="OnPrevMonth" ToolTip="Mes anterior">
+                                <Path Data="M 10,4 L 6,8 L 10,12" Width="16" Height="16"
+                                      Stroke="{DynamicResource TextMutedBrush}" StrokeThickness="1.8"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                            </Button>
+                            <TextBlock x:Name="MonthTitleText"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       FontSize="13" FontWeight="SemiBold"
+                                       VerticalAlignment="Center"/>
+                        </DockPanel>
+
+                        <UniformGrid Columns="7" Margin="0,0,0,2">
+                            <TextBlock Text="L" FontSize="11" HorizontalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="M" FontSize="11" HorizontalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="M" FontSize="11" HorizontalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="J" FontSize="11" HorizontalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="V" FontSize="11" HorizontalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="S" FontSize="11" HorizontalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="D" FontSize="11" HorizontalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                        </UniformGrid>
+
+                        <UniformGrid x:Name="DaysGrid" Columns="7" Rows="6"/>
+                    </StackPanel>
+                </Border>
+            </Border>
+
+            <!-- Events of the selected day + "Próximos" (expanded only) -->
+            <StackPanel Grid.Column="1">
+                <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <!-- Name kept: the BetterCalendar plugin writes its "Outlook cerrado" notice here. -->
+                    <StackPanel x:Name="EventsPanel">
+                        <StackPanel.RenderTransform>
+                            <TranslateTransform x:Name="EventsShift"/>
+                        </StackPanel.RenderTransform>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <StackPanel x:Name="UpcomingPanel" Visibility="Collapsed" Opacity="0" Margin="0,8,0,0">
+                    <StackPanel.RenderTransform>
+                        <TranslateTransform x:Name="UpcomingShift" Y="8"/>
+                    </StackPanel.RenderTransform>
+                    <TextBlock Text="PRÓXIMOS" FontSize="10.5" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,2"/>
+                    <StackPanel x:Name="UpcomingList"/>
+                </StackPanel>
             </StackPanel>
-        </ScrollViewer>
+        </Grid>
     </Grid>
 </UserControl>
-
