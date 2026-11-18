@@ -193,9 +193,9 @@
                                 <views:MusicPlayerView x:Name="MusicPlayer"/>
                             </TabItem>
                             <TabItem x:Name="CalendarCardTab" Header="Calendario" Style="{StaticResource CardTab}">
-                                <StackPanel x:Name="CalendarPanel" Orientation="Horizontal">
+                                <Grid x:Name="CalendarPanel">
                                     <views:CalendarView x:Name="CalendarPanel_View"/>
-                                </StackPanel>
+                                </Grid>
                             </TabItem>
                         </TabControl>
 

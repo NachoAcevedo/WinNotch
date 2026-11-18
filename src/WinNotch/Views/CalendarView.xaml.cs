@@ -97,9 +97,11 @@ public partial class CalendarView : UserControl
 
         foreach (var ev in events)
         {
-            var item = new StackPanel
+            // DockPanel: dot and time on the left, meeting icon on the right,
+            // title fills whatever width is left.
+            var item = new DockPanel
             {
-                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                LastChildFill = true,
                 Margin = new Thickness(0, 2, 0, 2)
             };
 
@@ -134,16 +136,14 @@ public partial class CalendarView : UserControl
                 MinWidth = 76
             });
 
-            // Title
-            item.Children.Add(new TextBlock
+            var title = new TextBlock
             {
                 Text = ev.Title,
                 Foreground = primaryBrush,
                 FontSize = 12,
                 TextTrimming = TextTrimming.CharacterEllipsis,
-                VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 170
-            });
+                VerticalAlignment = VerticalAlignment.Center
+            };
 
             var surface = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 7, 10, 7), Margin = new Thickness(0, 3, 0, 3), Child = item };
             surface.SetResourceReference(Border.BackgroundProperty, "SurfaceRaisedBrush");
@@ -152,7 +152,7 @@ public partial class CalendarView : UserControl
             {
                 // Video camera marking joinable meetings, drawn in the same stroke language
                 // as the transport icons (16x16 grid, 1.8 stroke, round caps and joins).
-                item.Children.Add(new Path
+                var icon = new Path
                 {
                     Data = MeetingIcon,
                     Width = 16,
@@ -165,7 +165,9 @@ public partial class CalendarView : UserControl
                     StrokeLineJoin = PenLineJoin.Round,
                     VerticalAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(6, 0, 0, 0)
-                });
+                };
+                DockPanel.SetDock(icon, Dock.Right);
+                item.Children.Add(icon);
 
                 var url = ev.JoinUrl;
                 surface.Cursor = System.Windows.Input.Cursors.Hand;
@@ -177,6 +179,7 @@ public partial class CalendarView : UserControl
                 };
             }
 
+            item.Children.Add(title); // last child fills the remaining width
             EventsPanel.Children.Add(surface);
         }
     }
