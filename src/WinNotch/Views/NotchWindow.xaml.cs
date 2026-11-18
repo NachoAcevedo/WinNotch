@@ -605,6 +605,7 @@ public partial class NotchWindow : Window
 
         // Calendar
         CalendarPanel_View.Bind(_calendarService);
+        CalendarPanel_View.ExpandedChanged += RefreshPluginHostLayout;
         CalendarPanel.Visibility = _settings.ShowCalendar ? Visibility.Visible : Visibility.Collapsed;
 
         // File Shelf
@@ -1066,7 +1067,8 @@ public partial class NotchWindow : Window
             NotchConstants.OpenWidthWithCalendarAndWebcam
         }.Max();
         double maxTopOpenWidth = maxBaseTopOpenWidth
-            + GetMeasuredPanelWidth(PluginAccessoryPanel, NotchConstants.OpenHeight);
+            + GetMeasuredPanelWidth(PluginAccessoryPanel, NotchConstants.OpenHeight)
+            + CalendarView.ExpandedExtraWidth;
 
         double maxTopHeight = Math.Max(GetTopOpenHeight(), GetTopSettingsHeight());
         double sideExpandedWidth = NotchConstants.SideOpenWidth + 280 + NotchConstants.OpenTopRadius;
@@ -1465,6 +1467,7 @@ public partial class NotchWindow : Window
 
         _vm.Close();
         WindowHelper.MakeOverlayWindow(this);
+        CalendarPanel_View.ResetToToday();   // next open starts compact, on today
 
         _widthSpring.Response = 0.45;
         _widthSpring.DampingFraction = 1.0;
@@ -2165,7 +2168,12 @@ public partial class NotchWindow : Window
         else if (cam)
             baseWidth = NotchConstants.OpenWidthWithWebcam;
 
-        return baseWidth + accessoryWidth;
+        // The expanded calendar (month column) widens the notch while its card is shown.
+        double calendarWidth = CardTabs.SelectedItem == CalendarCardTab && CalendarPanel_View.IsExpanded
+            ? CalendarView.ExpandedExtraWidth
+            : 0;
+
+        return baseWidth + accessoryWidth + calendarWidth;
     }
 
     private void ApplyLiquidGlassEffect(bool enable)

@@ -166,6 +166,121 @@ public class CalendarService : IDisposable
         return events;
     }
 
+    /// <summary>
+    /// Events overlapping [from, to) across every Outlook store, for browsing other days
+    /// in the expanded calendar. Runs on its own STA thread; empty if Outlook isn't open.
+    /// </summary>
+    public Task<List<CalendarEvent>> FetchRangeAsync(DateTime from, DateTime to)
+    {
+        var tcs = new TaskCompletionSource<List<CalendarEvent>>();
+        var thread = new Thread(() =>
+        {
+            try { tcs.SetResult(FetchOutlookRange(from, to)); }
+            catch { tcs.SetResult(new List<CalendarEvent>()); }
+        })
+        {
+            IsBackground = true,
+            Name = "WinNotch.CalendarRange"
+        };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        return tcs.Task;
+    }
+
+    private const int MaxRangeEventsPerStore = 400;
+
+    private static List<CalendarEvent> FetchOutlookRange(DateTime from, DateTime to)
+    {
+        object? outlook = GetOutlookForRead();
+        if (outlook == null) return new List<CalendarEvent>();
+
+        object? ns = null;
+        object? stores = null;
+        var events = new List<CalendarEvent>();
+        try
+        {
+            ns = ((dynamic)outlook).GetNamespace("MAPI");
+            stores = ((dynamic)ns!).Stores;
+            string filter = $"[Start] < '{to:g}' AND [End] > '{from:g}'";
+
+            foreach (dynamic store in (dynamic)stores!)
+            {
+                object? calFolder = null, items = null, restricted = null;
+                try
+                {
+                    calFolder = store.GetDefaultFolder(9);
+                    items = ((dynamic)calFolder!).Items;
+                    dynamic ditems = items!;
+                    ditems.Sort("[Start]");
+                    ditems.IncludeRecurrences = true;
+                    restricted = ditems.Restrict(filter);
+
+                    int count = 0;
+                    foreach (dynamic item in (dynamic)restricted!)
+                    {
+                        try
+                        {
+                            events.Add(new CalendarEvent
+                            {
+                                Title = item.Subject ?? "Untitled",
+                                Start = item.Start,
+                                End = item.End,
+                                IsAllDay = item.AllDayEvent,
+                                CalendarColor = "",   // empty: the view falls back to the theme accent
+                                JoinUrl = ExtractJoinUrl(item)
+                            });
+                        }
+                        catch { }
+                        finally { ReleaseCom(item); }
+                        if (++count >= MaxRangeEventsPerStore) break;
+                    }
+                }
+                catch { } // stores without a calendar (archives, public folders)
+                finally
+                {
+                    ReleaseCom(restricted);
+                    ReleaseCom(items);
+                    ReleaseCom(calFolder);
+                    ReleaseCom(store);
+                }
+            }
+        }
+        catch { }
+        finally
+        {
+            ReleaseCom(stores);
+            ReleaseCom(ns);
+            ReleaseCom(outlook);
+        }
+
+        // The same meeting can live in more than one account.
+        return events
+            .GroupBy(e => (e.Title, e.Start))
+            .Select(g => g.First())
+            .OrderBy(e => e.Start)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Like <see cref="GetActiveOutlook"/>, but also attaches to an Outlook started by
+    /// automation (-Embedding), which doesn't register in the ROT. Never launches Outlook.
+    /// </summary>
+    private static object? GetOutlookForRead()
+    {
+        var active = GetActiveOutlook();
+        if (active != null) return active;
+        try
+        {
+            if (System.Diagnostics.Process.GetProcessesByName("OUTLOOK").Length == 0) return null;
+            var type = Type.GetTypeFromProgID("Outlook.Application");
+            return type == null ? null : Activator.CreateInstance(type);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static string? ExtractJoinUrl(dynamic item)
     {
         string location = "", body = "";
