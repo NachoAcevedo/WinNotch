@@ -179,7 +179,7 @@ internal sealed class CodexPanel : StackPanel
         if (_canReply) _chats.Items.Add(NewChatChoice);
         _chats.SelectionChanged += async (_, _) =>
         {
-            if (_loading) return;
+            if (_loading || _reading || _sending) return;
             if (_chats.SelectedItem is CodexChat { Id.Length: 0 }) { if (!_newChat) StartNewChat(); return; }
             if (_newChat && _chats.SelectedItem == null) return;
             _newChat = false;
@@ -220,11 +220,16 @@ internal sealed class CodexPanel : StackPanel
             if (!IsVisible) return;
             _lifetime ??= new CancellationTokenSource();
             _poll.Start();
-            if (_chats.Items.Count <= 1) await LoadChatsAsync();
-            else await ReadAsync();
+            await LoadChatsAsync();
         };
         // Hiding the tab never cancels a send: it only reduces status polling to an idle timer.
-        _poll.Tick += async (_, _) => { if (IsVisible || (_pendingThread != null && _pendingThread == (_chats.SelectedItem as CodexChat)?.Id)) await PollAsync(); };
+        _poll.Tick += async (_, _) =>
+        {
+            if (IsVisible && DateTime.UtcNow - _lastChatRefreshUtc >= TimeSpan.FromSeconds(15))
+                await LoadChatsAsync();
+            else if (IsVisible || (_pendingThread != null && _pendingThread == (_chats.SelectedItem as CodexChat)?.Id))
+                await PollAsync();
+        };
         IsVisibleChanged += async (_, _) =>
         {
             UpdateHold();
@@ -232,8 +237,7 @@ internal sealed class CodexPanel : StackPanel
             {
                 _lifetime ??= new CancellationTokenSource();
                 _poll.Start();
-                if (_chats.Items.Count <= 1) await LoadChatsAsync();
-                else await ReadAsync();
+                await LoadChatsAsync();
             }
             else if (_pendingThread == null) _poll.Stop();
         };
@@ -432,15 +436,18 @@ internal sealed class CodexPanel : StackPanel
         HoldOpen = hold; HoldChanged?.Invoke();
     }
 
+    private DateTime _lastChatRefreshUtc;
+
     private async Task LoadChatsAsync()
     {
-        if (_loading) return;
+        if (_loading || _reading || _sending) return;
         _loading = true; _refresh.IsEnabled = false;
         try
         {
             string? selected = (_chats.SelectedItem as CodexChat)?.Id ?? _preferences.ChatId;
             var arguments = new Dictionary<string, object> { ["mode"] = "history", ["source"] = "codex", ["limit"] = _chatLimit };
             var result = await _connection.CallAsync("list_threads", arguments, _lifetime?.Token ?? default);
+            _lastChatRefreshUtc = DateTime.UtcNow;
             _chats.Items.Clear();
             if (_canReply) _chats.Items.Add(NewChatChoice);
             foreach (var chat in result.GetProperty("threads").EnumerateArray())
