@@ -89,8 +89,17 @@ public class FullscreenService : IDisposable
             if (cls is "Progman" or "WorkerW") return false;
         }
 
-        if (GetWindowRect(foreground, out RECT windowRect))
+        // A maximized window's outer frame can exceed the monitor bounds.
+        // Fullscreen requires its client area to cover the whole monitor.
+        if (GetClientRect(foreground, out RECT windowRect))
         {
+            var origin = new POINT();
+            if (!ClientToScreen(foreground, ref origin)) return false;
+            windowRect.Right += origin.X;
+            windowRect.Bottom += origin.Y;
+            windowRect.Left += origin.X;
+            windowRect.Top += origin.Y;
+
             // Get the monitor info for the foreground window
             IntPtr monitor = MonitorFromWindow(foreground, MONITOR_DEFAULTTONEAREST);
             var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
@@ -133,7 +142,14 @@ public class FullscreenService : IDisposable
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+    private static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ClientToScreen(IntPtr hWnd, ref POINT point);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int X, Y; }
 
     [DllImport("user32.dll")]
     private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
