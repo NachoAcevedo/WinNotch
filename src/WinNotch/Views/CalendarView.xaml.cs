@@ -1,9 +1,13 @@
 using System;
+using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using WinNotch.Services;
 
 namespace WinNotch.Views;
@@ -23,6 +27,37 @@ public partial class CalendarView : UserControl
         _calendarService = calendarService;
         _calendarService.EventsUpdated += () => Dispatcher.Invoke(UpdateEventsList);
         UpdateEventsList();
+
+        // Re-filter every minute so a meeting disappears right when it ends,
+        // without waiting for the 5-minute Outlook refresh.
+        _expiryTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+        _expiryTimer.Tick += (_, _) => UpdateEventsList();
+        _expiryTimer.Start();
+    }
+
+    private DispatcherTimer? _expiryTimer;
+
+    // Rounded camera body plus lens, on the same 16x16 grid as the transport icons.
+    private static readonly Geometry MeetingIcon = Geometry.Parse(
+        "M 3.5,4.5 H 8.5 A 1.5,1.5 0 0 1 10,6 V 10 A 1.5,1.5 0 0 1 8.5,11.5 H 3.5 A 1.5,1.5 0 0 1 2,10 V 6 A 1.5,1.5 0 0 1 3.5,4.5 Z " +
+        "M 10,7 L 13,5.3 Q 14,4.8 14,5.8 V 10.2 Q 14,11.2 13,10.7 L 10,9");
+
+    private static void OpenMeeting(string url)
+    {
+        // Teams links go straight to the desktop app (no browser "open Teams?" page);
+        // fall back to the https link if the msteams: protocol isn't registered.
+        const string teamsWeb = "https://teams.microsoft.com/";
+        if (url.StartsWith(teamsWeb, StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo("msteams:/" + url.Substring(teamsWeb.Length)) { UseShellExecute = true });
+                return;
+            }
+            catch { }
+        }
+        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+        catch { }
     }
 
     private void UpdateDateHeader()
@@ -38,7 +73,8 @@ public partial class CalendarView : UserControl
         UpdateDateHeader();
         EventsPanel.Children.Clear();
 
-        var events = _calendarService?.TodayEvents;
+        var now = DateTime.Now;
+        var events = _calendarService?.TodayEvents.Where(e => e.End > now).ToList();
         if (events == null || events.Count == 0)
         {
             var faintBrush = TryFindResource("TextFaintBrush") as SolidColorBrush
@@ -94,8 +130,8 @@ public partial class CalendarView : UserControl
                 Foreground = mutedBrush,
                 FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 6, 0),
-                Width = 36
+                Margin = new Thickness(0, 0, 8, 0),
+                MinWidth = 76
             });
 
             // Title
@@ -106,11 +142,41 @@ public partial class CalendarView : UserControl
                 FontSize = 12,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 220
+                MaxWidth = 170
             });
 
             var surface = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 7, 10, 7), Margin = new Thickness(0, 3, 0, 3), Child = item };
             surface.SetResourceReference(Border.BackgroundProperty, "SurfaceRaisedBrush");
+
+            if (!string.IsNullOrEmpty(ev.JoinUrl))
+            {
+                // Video camera marking joinable meetings, drawn in the same stroke language
+                // as the transport icons (16x16 grid, 1.8 stroke, round caps and joins).
+                item.Children.Add(new Path
+                {
+                    Data = MeetingIcon,
+                    Width = 16,
+                    Height = 16,
+                    Stroke = TryFindResource("AccentBrush") as SolidColorBrush
+                        ?? new SolidColorBrush(Color.FromRgb(0x4A, 0x90, 0xD9)),
+                    StrokeThickness = 1.8,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round,
+                    StrokeLineJoin = PenLineJoin.Round,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(6, 0, 0, 0)
+                });
+
+                var url = ev.JoinUrl;
+                surface.Cursor = System.Windows.Input.Cursors.Hand;
+                surface.ToolTip = "Unirse a la reunión";
+                surface.MouseLeftButtonUp += (_, e) =>
+                {
+                    e.Handled = true;
+                    OpenMeeting(url);
+                };
+            }
+
             EventsPanel.Children.Add(surface);
         }
     }

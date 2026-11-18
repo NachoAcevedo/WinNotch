@@ -38,8 +38,8 @@ public sealed class AgentCardView : UserControl
 
     private readonly CodexPanel _codex = new();
     // Modo VS Code: el mismo panel que Codex, con el agente elegido en la configuración.
-    private readonly CodexPanel _vscodeClaude = new(new VsCodeAgentConnection(TranscriptAgent.ClaudeCode), agent: "Claude Code", cardMode: "VS Code", settingsFile: "vscode-claude-plugin-settings.json");
-    private readonly CodexPanel _vscodeCodex = new(new VsCodeAgentConnection(TranscriptAgent.Codex), agent: "Codex", cardMode: "VS Code", settingsFile: "vscode-codex-plugin-settings.json");
+    private readonly CodexPanel _vscodeClaude = new(new VsCodeAgentConnection(TranscriptAgent.ClaudeCode), agent: "Claude Code", cardMode: "VS Code", settingsFile: "vscode-claude-plugin-settings.json", canReply: false);
+    private readonly CodexPanel _vscodeCodex = new(new VsCodeAgentConnection(TranscriptAgent.Codex), agent: "Codex", cardMode: "VS Code", settingsFile: "vscode-codex-plugin-settings.json", canReply: false);
     private readonly AgentModeSettingsView _modeSettings = new() { Visibility = Visibility.Collapsed };
     private readonly ExternalAgentPanel _external = new();
     private readonly StackPanel _legacyHeader = new() { Orientation = Orientation.Horizontal };

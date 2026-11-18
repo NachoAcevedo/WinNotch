@@ -13,5 +13,8 @@ public class CalendarEvent
     public string CalendarColor { get; set; } = "#4A90D9";
     public bool IsAllDay { get; set; }
 
-    public string TimeDisplay => IsAllDay ? "All day" : Start.ToString("HH:mm");
+    /// <summary>Online-meeting join URL (Teams/Zoom/Meet/Webex), if the invite has one.</summary>
+    public string? JoinUrl { get; set; }
+
+    public string TimeDisplay => IsAllDay ? "All day" : $"{Start:HH:mm} - {End:HH:mm}";
 }
