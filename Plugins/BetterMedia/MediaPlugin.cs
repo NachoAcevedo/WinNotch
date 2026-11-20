@@ -29,6 +29,7 @@ public sealed class MediaPlugin : PluginBase
 
     private static readonly FieldInfo? FeedbackDetailField = typeof(HudOverlay).GetField("FeedbackDetail", Flags);
     private readonly List<Action> _undo = new();
+    private PublicPosterFallback? _posters;
 
     public override string Id => "personal.media";
     public override string Name => "Media";
@@ -48,6 +49,8 @@ public sealed class MediaPlugin : PluginBase
 
         Application.Current.Dispatcher.Invoke(() =>
         {
+            if (Context?.MediaService is { } media)
+                _posters ??= new PublicPosterFallback(media, message => Context?.Log(message, PluginLogLevel.Warning));
             foreach (var window in Application.Current.Windows.OfType<NotchWindow>())
             {
                 Attach(window);
@@ -64,6 +67,8 @@ public sealed class MediaPlugin : PluginBase
                 undo();
             }
             _undo.Clear();
+            _posters?.Dispose();
+            _posters = null;
         });
         return base.OnDisableAsync();
     }
