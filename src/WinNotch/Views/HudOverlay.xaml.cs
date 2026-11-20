@@ -23,6 +23,13 @@ public partial class HudOverlay : UserControl
         set { _isActive = value; if (!value) Dismiss(); }
     }
     public bool IsShowing => IsActive && Visibility == Visibility.Visible;
+    internal string? TargetCardKey => IsShowing ? _currentType switch
+    {
+        HudType.Music => "music",
+        HudType.DeviceBattery => "batterymanager",
+        _ => null
+    } : null;
+
     internal bool ShowsMusic => IsShowing && _currentType == HudType.Music;
     internal bool ShowsInFullscreen => IsShowing && _currentType is HudType.Volume or HudType.CapsLock or HudType.Music or HudType.Microphone;
 

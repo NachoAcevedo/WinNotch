@@ -21,6 +21,7 @@ public partial class NotchWindow : Window
     private readonly NotchViewModel _vm;
     private bool HasActiveHud => HudOverlay.IsShowing || VerticalHudOverlay.IsShowing;
     private bool _incomingFileDrag;
+    private string? _clickedNoticeCard;
 
     public bool TryShowDeviceBattery(string name, int level, bool critical) =>
         TryShowDeviceBattery(name, level, critical, "Batería baja");
@@ -208,7 +209,7 @@ public partial class NotchWindow : Window
         bool gaming = GamingActive;
         bool hidden = gaming ? !_gamingRevealed : FullscreenOnThisMonitor && !_settings.AlwaysShowMinimum;
         bool showHud = HudOverlay.ShowsInFullscreen || VerticalHudOverlay.ShowsInFullscreen;
-        bool shown = !hidden || (!gaming && _lyricsStripShown) || showHud;
+        bool shown = !hidden || _lyricsStripShown || showHud;
         SetNotchShown(shown, animate || (gaming && !shown));
         if (showHud && FullscreenOnThisMonitor)
         {
@@ -1580,6 +1581,7 @@ public partial class NotchWindow : Window
         // Don't capture for drag when open — let buttons/controls work normally
         if (_vm.NotchState == NotchState.Open && sender != NotchPath) return;
 
+        _clickedNoticeCard = HudOverlay.TargetCardKey ?? VerticalHudOverlay.TargetCardKey;
         var cursorPos = System.Windows.Forms.Cursor.Position;
         _dragStartScreen = new Point(cursorPos.X, cursorPos.Y);
         _dragLastScreen = _dragStartScreen;
@@ -1661,8 +1663,17 @@ public partial class NotchWindow : Window
         {
             // Short click — normal behavior (no movement occurred)
             if (_vm.NotchState == NotchState.Closed || _vm.NotchState == NotchState.Peeking)
+            {
+                var key = _clickedNoticeCard ?? HudOverlay.TargetCardKey ?? VerticalHudOverlay.TargetCardKey;
+                TabItem? target = key == "music" ? MusicCardTab :
+                    key != null && _pluginCardTabs.TryGetValue(key, out var tab) ? tab : null;
+                if (target?.Visibility == Visibility.Visible)
+                    CardTabs.SelectedItem = target;
+                if (GamingActive && key != null) RevealForGaming();
                 TransitionToOpen();
+            }
         }
+        _clickedNoticeCard = null;
     }
 
     private void BeginDrag(Point currentScreenPos)
