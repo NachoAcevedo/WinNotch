@@ -48,6 +48,7 @@ public sealed class NotchServices : IDisposable
         MediaFeedback.Initialize(Media.MediaInfo);
         Lyrics.Bind(Media.MediaInfo);
         ApplyFeedbackSettings(settings);
+        Volume.EndpointChanged += AudioCapture.Reconnect;
         AudioCapture.Start();
         Volume.Initialize();
         Microphone.MuteChanged += muted => MicrophoneMuteChanged?.Invoke(muted);
@@ -65,10 +66,21 @@ public sealed class NotchServices : IDisposable
         Fullscreen.Start();
     }
 
+    internal void ReconnectAudio()
+    {
+        // A failed endpoint must not prevent recovery of the other roles.
+        foreach (var service in new[] { Volume, Microphone, CommunicationsMicrophone })
+        {
+            try { service.Reconnect(); }
+            catch (System.Runtime.InteropServices.COMException) { }
+        }
+    }
+
     public void Dispose()
     {
         CapsLock.Dispose();
         MediaFeedback.Dispose();
+        Volume.EndpointChanged -= AudioCapture.Reconnect;
         AudioCapture.Dispose();
         Media.Dispose();
         Volume.Dispose();

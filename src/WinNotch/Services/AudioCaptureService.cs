@@ -16,6 +16,9 @@ public class AudioCaptureService : IDisposable
     private readonly int _fftSize;
     private int _fftPos;
     private bool _isCapturing;
+    private bool _requested;
+    private readonly System.Windows.Threading.Dispatcher _dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
+    private System.Windows.Threading.DispatcherTimer? _reconnectTimer;
     private bool _disposed;
     private readonly object _captureLock = new();
 
@@ -42,10 +45,13 @@ public class AudioCaptureService : IDisposable
     {
         lock (_captureLock)
         {
-            if (_isCapturing || _disposed) return;
+            if (_disposed) return;
+            _requested = true;
+            if (_isCapturing) return;
 
             try
             {
+                ReleaseCapture();
                 _capture = new WasapiLoopbackCapture();
                 _capture.DataAvailable += OnDataAvailable;
                 _capture.RecordingStopped += OnRecordingStopped;
@@ -54,6 +60,7 @@ public class AudioCaptureService : IDisposable
             }
             catch (Exception ex)
             {
+                ReleaseCapture();
                 System.Diagnostics.Debug.WriteLine($"AudioCapture start failed: {ex.Message}");
             }
         }
@@ -63,6 +70,8 @@ public class AudioCaptureService : IDisposable
     {
         lock (_captureLock)
         {
+            _requested = false;
+            _reconnectTimer?.Stop();
             if (!_isCapturing) return;
             _isCapturing = false;
 
@@ -76,10 +85,11 @@ public class AudioCaptureService : IDisposable
 
     private void OnDataAvailable(object? sender, WaveInEventArgs e)
     {
-        if (!_isCapturing || _capture == null) return;
+        var capture = sender as WasapiLoopbackCapture;
+        if (!_isCapturing || capture == null || !ReferenceEquals(capture, _capture)) return;
 
-        int bytesPerSample = _capture.WaveFormat.BitsPerSample / 8;
-        int channels = _capture.WaveFormat.Channels;
+        int bytesPerSample = capture.WaveFormat.BitsPerSample / 8;
+        int channels = capture.WaveFormat.Channels;
         int sampleCount = e.BytesRecorded / (bytesPerSample * channels);
 
         for (int i = 0; i < sampleCount; i++)
@@ -152,38 +162,52 @@ public class AudioCaptureService : IDisposable
 
     private void OnRecordingStopped(object? sender, StoppedEventArgs e)
     {
-        // Clear spectrum
-        Array.Clear(SpectrumData, 0, SpectrumData.Length);
-        SpectrumUpdated?.Invoke();
-
-        // If capture stopped without Stop() being called (default device changed,
-        // device unplugged), restart on the new default device after a short delay.
-        bool unexpected;
         lock (_captureLock)
         {
-            unexpected = _isCapturing && !_disposed;
-            if (unexpected)
-                _isCapturing = false;
+            if (!ReferenceEquals(sender, _capture)) return;
+            _isCapturing = false;
         }
+        Array.Clear(SpectrumData);
+        SpectrumUpdated?.Invoke();
+        Reconnect();
+    }
 
-        if (unexpected)
+    internal void Reconnect()
+    {
+        _dispatcher.BeginInvoke(() =>
         {
-            _ = System.Threading.Tasks.Task.Run(async () =>
+            if (_disposed || !_requested) return;
+            if (_reconnectTimer == null)
             {
-                await System.Threading.Tasks.Task.Delay(1500);
-                lock (_captureLock)
+                _reconnectTimer = new System.Windows.Threading.DispatcherTimer
+                    { Interval = TimeSpan.FromMilliseconds(300) };
+                _reconnectTimer.Tick += (_, _) =>
                 {
-                    if (_disposed || _isCapturing) return;
-                    try
+                    _reconnectTimer.Stop();
+                    lock (_captureLock)
                     {
-                        _capture?.Dispose();
+                        if (_disposed || !_requested) return;
+                        _isCapturing = false;
+                        ReleaseCapture();
+                        _fftPos = 0;
+                        Start();
                     }
-                    catch { }
-                    _capture = null;
-                }
-                Start();
-            });
-        }
+                };
+            }
+            _reconnectTimer.Stop();
+            _reconnectTimer.Start();
+        });
+    }
+
+    private void ReleaseCapture()
+    {
+        var capture = _capture;
+        _capture = null;
+        if (capture == null) return;
+        capture.DataAvailable -= OnDataAvailable;
+        capture.RecordingStopped -= OnRecordingStopped;
+        try { capture.Dispose(); }
+        catch (System.Runtime.InteropServices.COMException) { }
     }
 
     public void Dispose()
@@ -194,6 +218,6 @@ public class AudioCaptureService : IDisposable
             _disposed = true;
         }
         Stop();
-        _capture?.Dispose();
+        ReleaseCapture();
     }
 }

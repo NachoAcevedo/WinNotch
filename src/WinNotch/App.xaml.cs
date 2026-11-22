@@ -23,6 +23,8 @@ public partial class App : Application
     private ThemeService _themeService = null!;
     private NotchServices _services = null!;
 
+    private CancellationTokenSource? _audioResume;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -111,7 +113,28 @@ public partial class App : Application
     private void OnPowerModeChanged(object? sender, Microsoft.Win32.PowerModeChangedEventArgs e)
     {
         if (e.Mode == Microsoft.Win32.PowerModes.Resume)
+        {
             ScheduleDisplayReconcile();
+            _ = Dispatcher.InvokeAsync(async () =>
+            {
+                _audioResume?.Cancel();
+                _audioResume?.Dispose();
+                using var pending = new CancellationTokenSource();
+                _audioResume = pending;
+                try
+                {
+                    _services.ReconnectAudio();
+                    // USB/Bluetooth endpoints may finish returning after the resume event.
+                    await System.Threading.Tasks.Task.Delay(TimeSpan.FromSeconds(2), pending.Token);
+                    _services.ReconnectAudio();
+                }
+                catch (OperationCanceledException) { }
+                finally
+                {
+                    if (ReferenceEquals(_audioResume, pending)) _audioResume = null;
+                }
+            });
+        }
     }
 
     private void OnSessionSwitch(object? sender, Microsoft.Win32.SessionSwitchEventArgs e)
@@ -345,6 +368,7 @@ public partial class App : Application
         if (_themeService != null)
             _themeService.ThemeChanged -= ApplyTrayTheme;
         _trayIcon?.Dispose();
+        _audioResume?.Cancel();
         _services?.Dispose();
         if (_ownsMutex && _mutex != null)
         {

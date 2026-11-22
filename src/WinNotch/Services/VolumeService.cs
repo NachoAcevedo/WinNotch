@@ -1,5 +1,5 @@
 using System;
-using System.Threading;
+using System.Windows.Threading;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
 
@@ -9,8 +9,12 @@ namespace WinNotch.Services;
 public class VolumeService : IDisposable
 {
     private readonly object _sync = new();
+    private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
+    private AudioEndpointVolumeNotificationDelegate? _volumeNotification;
     private readonly DataFlow _flow;
     private bool _lastMuted;
+    private DispatcherTimer? _refreshTimer;
+    internal event Action? EndpointChanged;
 
     public VolumeService() : this(DataFlow.Render) { }
 
@@ -63,39 +67,75 @@ public class VolumeService : IDisposable
             {
                 _enumerator?.Dispose();
                 _enumerator = null;
+                _deviceNotifications = null;
                 System.Diagnostics.Debug.WriteLine($"VolumeService init failed: {ex.Message}");
             }
         }
     }
 
-    // Windows callbacks only queue work: never release COM objects from inside
-    // an IMMNotificationClient callback or block the Windows notification thread.
+    internal void Reconnect()
+    {
+        lock (_sync)
+        {
+            if (_disposed) return;
+            _refreshTimer?.Stop();
+            try
+            {
+                if (_deviceNotifications != null && _enumerator != null)
+                    _enumerator.UnregisterEndpointNotificationCallback(_deviceNotifications);
+            }
+            catch (System.Runtime.InteropServices.COMException) { }
+            finally
+            {
+                _deviceNotifications = null;
+                ReleaseEndpoint();
+                try { _enumerator?.Dispose(); }
+                catch (System.Runtime.InteropServices.COMException) { }
+                _enumerator = null;
+            }
+            Initialize();
+        }
+    }
+
+    // Collapse device bursts on the UI dispatcher; never release COM inside a callback.
     private void QueueEndpointRefresh()
     {
-        ThreadPool.QueueUserWorkItem(_ =>
+        _dispatcher.BeginInvoke(() =>
         {
-            lock (_sync)
+            if (_disposed) return;
+            if (_refreshTimer == null)
             {
-                if (!_disposed) RefreshEndpoint();
+                _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+                _refreshTimer.Tick += (_, _) =>
+                {
+                    _refreshTimer.Stop();
+                    lock (_sync)
+                        if (!_disposed) RefreshEndpoint(reconnect: true);
+                };
             }
+            _refreshTimer.Stop();
+            _refreshTimer.Start();
         });
     }
 
     // Called under _sync at startup, on device events, or before changing volume.
-    private void RefreshEndpoint()
+    private void RefreshEndpoint(bool reconnect = false)
     {
         MMDevice? next = null;
+        bool changed = false;
         try
         {
             _enumerator ??= new MMDeviceEnumerator();
             next = _enumerator.GetDefaultAudioEndpoint(_flow, _role);
-            if (_device?.ID == next.ID)
+            if (!reconnect && _device?.ID == next.ID)
                 return;
 
+            changed = true;
             ReleaseEndpoint();
             var endpoint = next.AudioEndpointVolume;
             _lastMuted = endpoint.Mute;
-            endpoint.OnVolumeNotification += OnVolumeNotification;
+            _volumeNotification = data => _dispatcher.BeginInvoke(() => PublishVolumeChange(endpoint, data));
+            endpoint.OnVolumeNotification += _volumeNotification;
             _device = next;
             _endpointVolume = endpoint;
             next = null;
@@ -108,34 +148,23 @@ public class VolumeService : IDisposable
         finally
         {
             next?.Dispose();
+            if (changed) EndpointChanged?.Invoke();
         }
     }
 
-    private void OnVolumeNotification(AudioVolumeNotificationData data)
+    private void PublishVolumeChange(AudioEndpointVolume endpoint, AudioVolumeNotificationData data)
     {
-        float volume;
-        bool muted;
         bool muteChanged;
         lock (_sync)
         {
-            if (_disposed || _endpointVolume == null) return;
-            try
-            {
-                // A previous output's callback may already be queued during a switch.
-                volume = _endpointVolume.MasterVolumeLevelScalar;
-                muted = _endpointVolume.Mute;
-                muteChanged = muted != _lastMuted;
-                _lastMuted = muted;
-            }
-            catch (Exception)
-            {
-                return; // Device-change notifications will reconnect the output.
-            }
+            // A queued event from the previous default device must not update this HUD.
+            if (_disposed || !ReferenceEquals(endpoint, _endpointVolume)) return;
+            muteChanged = data.Muted != _lastMuted;
+            _lastMuted = data.Muted;
         }
-        VolumeChanged?.Invoke(volume, muted);
-        if (muteChanged) MuteChanged?.Invoke(muted);
+        VolumeChanged?.Invoke(data.MasterVolume, data.Muted);
+        if (muteChanged) MuteChanged?.Invoke(data.Muted);
     }
-
     public void SetVolume(float level)
     {
         lock (_sync)
@@ -160,11 +189,23 @@ public class VolumeService : IDisposable
 
     private void ReleaseEndpoint()
     {
-        if (_endpointVolume != null)
-            _endpointVolume.OnVolumeNotification -= OnVolumeNotification;
+        var endpoint = _endpointVolume;
+        var notification = _volumeNotification;
+        var device = _device;
+        _volumeNotification = null;
         _endpointVolume = null;
-        _device?.Dispose();
         _device = null;
+        try
+        {
+            if (endpoint != null && notification != null)
+                endpoint.OnVolumeNotification -= notification;
+        }
+        catch (System.Runtime.InteropServices.COMException) { }
+        finally
+        {
+            try { device?.Dispose(); }
+            catch (System.Runtime.InteropServices.COMException) { }
+        }
     }
 
     public void Dispose()
@@ -173,8 +214,13 @@ public class VolumeService : IDisposable
         {
             if (_disposed) return;
             _disposed = true;
-            if (_deviceNotifications != null && _enumerator != null)
-                _enumerator.UnregisterEndpointNotificationCallback(_deviceNotifications);
+            _refreshTimer?.Stop();
+            try
+            {
+                if (_deviceNotifications != null && _enumerator != null)
+                    _enumerator.UnregisterEndpointNotificationCallback(_deviceNotifications);
+            }
+            catch (System.Runtime.InteropServices.COMException) { }
             _deviceNotifications = null;
             ReleaseEndpoint();
             _enumerator?.Dispose();

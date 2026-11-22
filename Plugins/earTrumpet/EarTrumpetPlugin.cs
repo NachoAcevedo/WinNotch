@@ -3,6 +3,8 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Threading;
+using Microsoft.Win32;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
 using WinNotch.Plugins;
@@ -40,7 +42,11 @@ internal sealed class AudioMixer : StackPanel
     private readonly List<MMDevice> _devices = new();
     private readonly List<AudioSessionControl> _sessions = new();
     private MMDeviceEnumerator? _enumerator;
-    private bool _refreshing;
+    private MMDeviceEnumerator? _watcher;
+    private DeviceNotifications? _notifications;
+    private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
+    private bool _watching;
+    private bool _renewWatcher;
 
     public AudioMixer()
     {
@@ -59,23 +65,93 @@ internal sealed class AudioMixer : StackPanel
         Children.Add(new ScrollViewer { Content = _apps, MaxHeight = 175, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
         _status.Margin = new Thickness(0, 5, 0, 0);
         Children.Add(_status);
-        Loaded += (_, _) => { if (IsVisible) Refresh(); };
-        Unloaded += (_, _) => ReleaseAudio();
-        IsVisibleChanged += (_, _) =>
+        _refreshTimer.Tick += (_, _) =>
         {
-            if (IsVisible && IsLoaded) Refresh();
-            else ReleaseAudio();
+            _refreshTimer.Stop();
+            if (_watching) Refresh();
         };
+        Loaded += (_, _) => UpdateWatching();
+        Unloaded += (_, _) => StopWatching();
+        IsVisibleChanged += (_, _) => UpdateWatching();
+    }
+
+    private void UpdateWatching()
+    {
+        if (!IsLoaded || !IsVisible) { StopWatching(); return; }
+        if (_watching) return;
+        _watching = true;
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        Refresh();
+    }
+
+    private void OnPowerModeChanged(object? sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == PowerModes.Resume) QueueRefresh(resuming: true);
+    }
+
+    private void QueueRefresh(bool resuming = false)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (!_watching) return;
+            _renewWatcher |= resuming;
+            _status.Text = "Reconectando audioÖ";
+            _heading.IsEnabled = _levels.IsEnabled = _apps.IsEnabled = false;
+            _refreshTimer.Stop();
+            _refreshTimer.Interval = TimeSpan.FromMilliseconds(resuming ? 2000 : 300);
+            _refreshTimer.Start();
+        });
+    }
+
+    private void StopWatching()
+    {
+        _watching = false;
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        _refreshTimer.Stop();
+        ReleaseWatcher();
+        ReleaseAudio();
+    }
+
+    private void ReleaseWatcher()
+    {
+        try
+        {
+            if (_watcher != null && _notifications != null)
+                _watcher.UnregisterEndpointNotificationCallback(_notifications);
+        }
+        catch (COMException) { }
+        _notifications = null;
+        try { _watcher?.Dispose(); }
+        catch (COMException) { }
+        _watcher = null;
+    }
+
+    private sealed class DeviceNotifications(AudioMixer owner) : IMMNotificationClient
+    {
+        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string id)
+        {
+            if (flow == DataFlow.Render && role == Role.Multimedia) owner.QueueRefresh();
+        }
+        public void OnDeviceStateChanged(string id, DeviceState state) => owner.QueueRefresh();
+        public void OnDeviceAdded(string id) => owner.QueueRefresh();
+        public void OnDeviceRemoved(string id) => owner.QueueRefresh();
+        public void OnPropertyValueChanged(string id, PropertyKey key) { }
     }
 
     private void Refresh(bool keepStatus = false)
     {
-        _refreshing = true;
+        _refreshTimer.Stop();
         try
         {
+            if (_renewWatcher) { ReleaseWatcher(); _renewWatcher = false; }
+            if (_watching && _watcher == null)
+            {
+                _watcher = new MMDeviceEnumerator();
+                _notifications = new DeviceNotifications(this);
+                try { _watcher.RegisterEndpointNotificationCallback(_notifications); }
+                catch (COMException) { ReleaseWatcher(); throw; }
+            }
             ReleaseAudio();
-            if (_outputTitle != null) _heading.Children.Remove(_outputTitle);
-            _outputTitle = null;
             if (!keepStatus) _status.Text = "";
             _enumerator = new MMDeviceEnumerator();
             foreach (var device in _enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
@@ -84,7 +160,7 @@ internal sealed class AudioMixer : StackPanel
             var outputs = _devices.Select(device => new Output(device.ID, device.FriendlyName)).ToArray();
             if (outputs.Length == 0)
             {
-                _status.Text = "No hay salidas de audio disponibles.";
+                _status.Text = "Audio no disponible. Conect· una salida y prob· actualizar.";
                 return;
             }
 
@@ -147,7 +223,10 @@ internal sealed class AudioMixer : StackPanel
             ReleaseAudio();
             _status.Text = "No pude leer el audio de Windows. Prob√° actualizar.";
         }
-        finally { _refreshing = false; }
+        finally
+        {
+            _heading.IsEnabled = _levels.IsEnabled = _apps.IsEnabled = true;
+        }
     }
 
     private UIElement AppRow(uint processId, AudioSessionControl[] sessions, Output[] routes, string[] activeOutputs)
@@ -363,14 +442,25 @@ internal sealed class AudioMixer : StackPanel
 
     private void ReleaseAudio()
     {
+        if (_outputTitle != null) _heading.Children.Remove(_outputTitle);
+        _outputTitle = null;
         _levels.Children.Clear();
         _openRoutes = null;
         _apps.Children.Clear();
-        foreach (var session in _sessions) session.Dispose();
+        foreach (var session in _sessions)
+        {
+            try { session.Dispose(); }
+            catch (COMException) { }
+        }
         _sessions.Clear();
-        foreach (var device in _devices) device.Dispose();
+        foreach (var device in _devices)
+        {
+            try { device.Dispose(); }
+            catch (COMException) { }
+        }
         _devices.Clear();
-        _enumerator?.Dispose();
+        try { _enumerator?.Dispose(); }
+        catch (COMException) { }
         _enumerator = null;
     }
 }
